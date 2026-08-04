@@ -1,0 +1,9 @@
+/* ==========================================================================
+   CTU MindCare — Sidebar styles moved to assets/css/mindcare.css
+   --------------------------------------------------------------------------
+   The full design system (sidebar, topbar, components, dark mode) now
+   lives in a single shared stylesheet:  assets/css/mindcare.css
+   Loaded automatically by includes/sidebar.php and every page <head>.
+   This file is kept only for backwards compatibility — it is no longer
+   linked from any page.
+   ========================================================================== */

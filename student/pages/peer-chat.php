@@ -22,7 +22,7 @@ if (isset($_GET['poll'])) {
     if (!$stmt->fetch()) { echo json_encode(['messages' => []]); exit; }
 
     $stmt = $db->prepare("
-        SELECT pm.id, pm.sender_id, pm.message, pm.sent_at,
+        SELECT pm.id, pm.sender_id, pm.message, pm.is_read, pm.sent_at,
                u.first_name, u.last_name, u.display_name
         FROM peer_messages pm
         JOIN users u ON pm.sender_id = u.id
@@ -213,614 +213,277 @@ function timeFull(string $dt): string {
 
 $my_initials = strtoupper(substr($user['first_name'],0,1).substr($user['last_name'],0,1));
 $other_initials = $other_user ? peerInitials($other_user) : '';
+
+$mc_title = 'Peer Chat — CTU MindCare';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Peer Chat — CTU MindCare</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --sage:       #4A9B7F; --sage-2:    #3d8a6f; --sage-dark: #2D6B57;
-      --sage-mid:   #C4E8DC; --sage-light:#EAF7F2;
-      --sand:       #F7F3EE; --sand-2:    #EDE8E1; --sand-3:    #D9D3C9;
-      --white:      #FFFFFF; --text:      #2C2C2A; --text-2:    #5C5B57;
-      --text-3:     #9A9891; --border:    #E8E4DE;
-      --coral:      #D96B52; --coral-light:#FAECE7;
-      --lav:        #7B6FC4; --lav-light: #EEEDFE;
-      --topbar-h:   58px;    --sidebar-w: 230px;  --cpane-w: 280px;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      height: 100%; overflow: hidden;
-      font-family: 'DM Sans', sans-serif; font-size: 14px;
-      color: var(--text); background: var(--sand);
-      -webkit-font-smoothing: antialiased;
-    }
-    a { text-decoration: none; color: inherit; }
-
-    /* ── Topbar ── */
-    .topbar {
-      height: var(--topbar-h); background: var(--white);
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; padding: 0 24px;
-      position: fixed; top: 0; left: 0; right: 0; z-index: 300; gap: 16px;
-    }
-    .topbar-brand  { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-    .topbar-mark   { width: 34px; height: 34px; background: var(--sage); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; font-size: 17px; color: #fff; }
-    .topbar-name   { font-family: 'DM Serif Display', serif; font-size: 17px; color: var(--text); }
-    .topbar-school { font-size: 10px; color: var(--text-3); margin-top: 1px; }
-    .topbar-right  { display: flex; align-items: center; gap: 12px; }
-    .user-chip     { display: flex; align-items: center; gap: 8px; background: var(--sage-light); border: 1px solid var(--sage-mid); border-radius: 100px; padding: 5px 14px 5px 6px; }
-    .user-av-sm    { width: 26px; height: 26px; border-radius: 50%; background: var(--sage); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff; }
-    .user-name     { font-size: 12px; font-weight: 500; color: var(--sage-dark); }
-    .logout-btn    { font-size: 12px; color: var(--text-3); padding: 6px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--white); transition: color .15s, border-color .15s; }
-    .logout-btn:hover { color: var(--coral); border-color: var(--coral); }
-
-    /* ── Shell ── */
-    .shell {
-      display: grid;
-      grid-template-columns: var(--sidebar-w) var(--cpane-w) 1fr;
-      height: calc(100vh - var(--topbar-h));
-      margin-top: var(--topbar-h);
-      overflow: hidden;
-    }
-
-    /* ── Nav sidebar ── */
-    .sidebar {
-      background: var(--white); border-right: 1px solid var(--border);
-      padding: 20px 0; overflow-y: auto;
-      display: flex; flex-direction: column;
-    }
-    .sb-section { padding: 0 14px; margin-bottom: 6px; }
-    .sb-label   { font-size: 9px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; padding: 0 8px; margin-bottom: 4px; display: block; }
-    .nav-item   { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; font-size: 13px; color: var(--text-2); text-decoration: none; transition: all .12s; margin-bottom: 1px; }
-    .nav-item:hover  { background: var(--sand); color: var(--text); }
-    .nav-item.active { background: var(--sage-light); color: var(--sage-dark); font-weight: 500; }
-    .nav-icon   { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; background: var(--sand); }
-    .nav-item.active .nav-icon { background: var(--sage-mid); }
-    .nav-item.crisis-nav { color: var(--coral); }
-    .nav-item.crisis-nav:hover { background: var(--coral-light); }
-    .nav-item.crisis-nav .nav-icon { background: var(--coral-light); }
-    .sb-divider { height: 1px; background: var(--border); margin: 10px 14px; }
-    .sb-footer  { margin-top: auto; padding: 14px; }
-    .sb-user-card { background: var(--sand); border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; }
-    .su-av  { width: 32px; height: 32px; border-radius: 50%; background: var(--sage-mid); color: var(--sage-dark); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .su-name{ font-size: 12px; font-weight: 500; color: var(--text); }
-    .su-id  { font-size: 10px; color: var(--text-3); margin-top: 1px; }
-
-    /* ── Conversations pane ── */
-    .conv-pane {
-      background: var(--white); border-right: 1px solid var(--border);
-      display: flex; flex-direction: column; overflow: hidden;
-    }
-    .cp-header  { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .cp-top     { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .cp-title   { font-size: 13px; font-weight: 600; color: var(--text); }
-    .btn-new-chat {
-      width: 28px; height: 28px; border-radius: 7px; background: var(--sage);
-      border: none; color: #fff; font-size: 17px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: background .15s; flex-shrink: 0;
-    }
-    .btn-new-chat:hover { background: var(--sage-2); }
-
-    /* Search new peer */
-    .peer-search-wrap { position: relative; }
-    .ps-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text-3); pointer-events: none; }
-    .peer-search-input {
-      width: 100%; padding: 7px 9px 7px 28px;
-      background: var(--sand); border: 1.5px solid var(--border);
-      border-radius: 8px; font-family: 'DM Sans', sans-serif;
-      font-size: 12px; color: var(--text); outline: none;
-      transition: border-color .15s, background .15s;
-    }
-    .peer-search-input:focus { background: var(--white); border-color: var(--sage); }
-    .peer-search-input::placeholder { color: var(--text-3); }
-
-    /* Search results dropdown */
-    .search-results {
-      position: absolute; left: 0; right: 0; top: calc(100% + 4px);
-      background: var(--white); border: 1px solid var(--border);
-      border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1);
-      z-index: 50; overflow: hidden; max-height: 240px; overflow-y: auto;
-    }
-    .sr-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 12px; cursor: pointer; transition: background .1s;
-      text-decoration: none;
-    }
-    .sr-item:hover { background: var(--sage-light); }
-    .sr-av   { width: 32px; height: 32px; border-radius: 50%; background: var(--lav-light); color: var(--lav); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .sr-name { font-size: 13px; font-weight: 500; color: var(--text); }
-    .sr-id   { font-size: 11px; color: var(--text-3); }
-    .sr-empty { padding: 14px 12px; font-size: 12px; color: var(--text-3); text-align: center; }
-
-    /* Conversations list */
-    .conv-list { flex: 1; overflow-y: auto; }
-    .conv-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 11px 14px; cursor: pointer;
-      transition: background .12s; border-bottom: 1px solid var(--border);
-      text-decoration: none;
-    }
-    .conv-item:hover  { background: var(--sand); }
-    .conv-item.active { background: var(--sage-light); }
-    .conv-av   { width: 40px; height: 40px; border-radius: 50%; background: var(--lav-light); color: var(--lav); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
-    .conv-av-colors {
-      --colors: #C4E8DC #EEEDFE #FDF3DF #FAECE7 #E0F2FE #F3E8FF;
-    }
-    .unread-dot { position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--coral); border: 2px solid var(--white); }
-    .conv-info  { flex: 1; min-width: 0; }
-    .conv-name  { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .conv-preview { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-    .conv-preview.unread { font-weight: 600; color: var(--text-2); }
-    .conv-time  { font-size: 10px; color: var(--text-3); flex-shrink: 0; }
-    .conv-badge { min-width: 18px; height: 18px; border-radius: 9px; background: var(--coral); color: #fff; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; padding: 0 4px; flex-shrink: 0; }
-    .cp-empty   { padding: 32px 16px; text-align: center; font-size: 12px; color: var(--text-3); line-height: 1.7; }
-
-    /* ── Chat pane ── */
-    .chat-pane { display: flex; flex-direction: column; overflow: hidden; background: var(--sand); }
-
-    .ch-back-btn { display: none; width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--white); align-items: center; justify-content: center; font-size: 18px; cursor: pointer; flex-shrink: 0; transition: background .12s; color: var(--text-2); }
-    .ch-back-btn:hover { background: var(--sand); }
-
-    /* Chat header */
-    .chat-header { background: var(--white); border-bottom: 1px solid var(--border); padding: 13px 20px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-    .ch-av   { width: 38px; height: 38px; border-radius: 50%; background: var(--lav-light); color: var(--lav); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .ch-name { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.2; }
-    .ch-sub  { font-size: 11px; color: var(--text-3); margin-top: 2px; }
-    .ch-actions { margin-left: auto; display: flex; gap: 8px; }
-    .ch-btn  { padding: 6px 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .12s; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
-    .ch-btn:hover { border-color: var(--sage); color: var(--sage); }
-
-    /* Messages */
-    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 2px; scroll-behavior: smooth; }
-
-    .date-sep { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-3); margin: 12px 0 8px; flex-shrink: 0; }
-    .date-sep::before, .date-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-    .sys-msg { text-align: center; font-size: 11px; color: var(--text-3); padding: 5px 14px; background: var(--sand-2); border-radius: 20px; margin: 6px auto 14px; max-width: 320px; flex-shrink: 0; }
-
-    .msg-row { display: flex; align-items: flex-end; gap: 8px; flex-shrink: 0; }
-    .msg-row.mine   { flex-direction: row-reverse; }
-    .msg-row + .msg-row { margin-top: 2px; }
-    .msg-row.new-group  { margin-top: 10px; }
-
-    .bub-av { width: 28px; height: 28px; border-radius: 50%; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .bub-av.is-mine   { background: var(--sage); color: #fff; }
-    .bub-av.is-theirs { background: var(--lav-light); color: var(--lav); }
-    .bub-av.hidden-av { visibility: hidden; }
-
-    .bub-wrap { display: flex; flex-direction: column; max-width: 65%; }
-    .msg-row.mine .bub-wrap { align-items: flex-end; }
-
-    .bubble { padding: 10px 14px; border-radius: 18px; font-size: 13px; line-height: 1.65; word-break: break-word; }
-    .msg-row.mine   .bubble { background: var(--sage); color: #fff; border-bottom-right-radius: 5px; }
-    .msg-row.theirs .bubble { background: var(--white); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 5px; }
-    .msg-row.mine.new-group   .bubble { border-top-right-radius: 18px; }
-    .msg-row.theirs.new-group .bubble { border-top-left-radius: 18px; }
-
-    .msg-time { font-size: 10px; color: var(--text-3); margin-top: 3px; padding: 0 2px; }
-    .msg-row.mine .msg-time { text-align: right; }
-
-    /* Typing dots */
-    .typing-row { display: none; flex-direction: row; align-items: flex-end; gap: 8px; margin-top: 10px; flex-shrink: 0; }
-    .typing-row.show { display: flex; }
-    .typing-dots { background: var(--white); border: 1px solid var(--border); padding: 11px 14px; border-radius: 18px; border-bottom-left-radius: 5px; display: flex; gap: 4px; align-items: center; }
-    .t-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sand-3); animation: tdot 1.2s ease-in-out infinite; }
-    .t-dot:nth-child(2) { animation-delay: .18s; }
-    .t-dot:nth-child(3) { animation-delay: .36s; }
-    @keyframes tdot { 0%,60%,100% { transform:translateY(0);background:var(--sand-3); } 30% { transform:translateY(-5px);background:var(--lav); } }
-
-    /* Input area */
-    .chat-input-area { background: var(--white); border-top: 1px solid var(--border); padding: 13px 16px; flex-shrink: 0; }
-    .input-row { display: flex; align-items: flex-end; gap: 10px; }
-    .msg-textarea {
-      flex: 1; padding: 10px 14px;
-      background: var(--sand); border: 1.5px solid var(--border);
-      border-radius: 22px; font-family: 'DM Sans', sans-serif;
-      font-size: 13px; color: var(--text); outline: none;
-      resize: none; min-height: 42px; max-height: 120px;
-      line-height: 1.5; overflow-y: hidden;
-      transition: border-color .15s, box-shadow .15s, background .15s;
-    }
-    .msg-textarea:focus { background: var(--white); border-color: var(--sage); box-shadow: 0 0 0 3px rgba(74,155,127,.08); }
-    .msg-textarea::placeholder { color: var(--text-3); }
-    .send-btn {
-      width: 42px; height: 42px; border-radius: 50%; background: var(--sage);
-      border: none; cursor: pointer; font-size: 17px; color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: background .15s, transform .1s;
-    }
-    .send-btn:hover  { background: var(--sage-2); }
-    .send-btn:active { transform: scale(.92); }
-    .send-btn:disabled { background: var(--sand-3); cursor: not-allowed; }
-    .input-hint { font-size: 11px; color: var(--text-3); margin-top: 6px; }
-
-    /* Empty states */
-    .empty-pane { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
-    .ep-icon    { font-size: 52px; margin-bottom: 16px; }
-    .ep-title   { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--text); margin-bottom: 8px; }
-    .ep-sub     { font-size: 13px; color: var(--text-3); line-height: 1.7; max-width: 300px; }
-    .ep-tip     { margin-top: 14px; font-size: 12px; color: var(--text-3); background: var(--sand-2); border-radius: 10px; padding: 10px 14px; line-height: 1.6; max-width: 300px; }
-
-    .no-msgs      { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
-    .no-msgs-icon { font-size: 44px; margin-bottom: 12px; }
-    .no-msgs-title{ font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
-    .no-msgs-sub  { font-size: 13px; color: var(--text-3); line-height: 1.6; max-width: 260px; }
-
-    /* Safety banner */
-    .safety-banner { background: var(--sage-light); border-bottom: 1px solid var(--sage-mid); padding: 8px 20px; font-size: 11px; color: var(--sage-dark); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
-    @media (max-width: 900px) {
-      .shell { grid-template-columns: var(--cpane-w) 1fr; }
-    }
-    @media (max-width: 900px) {
-      .hamburger   { display: flex; }
-      .layout      { grid-template-columns: 1fr; }
-      .sidebar     { position: fixed; top: 58px; left: 0; bottom: 0; z-index: 300; transform: translateX(-100%); transition: transform .28s ease; height: calc(100vh - 58px); width: 270px; box-shadow: 4px 0 24px rgba(0,0,0,.12); overflow-y: auto; }
-      .sidebar.mobile-open { transform: translateX(0); }
-      .main        { padding: 20px 16px; }
-    }
-
-    /* ── Full mobile chat experience ── */
-    @media (max-width: 600px) {
-      .shell { grid-template-columns: 1fr; position: relative; }
-
-      /* Conv-pane: full screen, shown by default */
-      .conv-pane {
-        position: fixed; inset: 58px 0 0 0; z-index: 10;
-        width: 100%; transition: transform .3s ease; transform: translateX(0);
-      }
-      .conv-pane.hidden-mobile { transform: translateX(-100%); pointer-events: none; }
-
-      /* Chat-pane: starts off-screen to the right, non-interactive */
-      .chat-pane {
-        position: fixed; inset: 58px 0 0 0; z-index: 10;
-        width: 100%; transform: translateX(100%); transition: transform .3s ease;
-        pointer-events: none;
-      }
-      .chat-pane.active-mobile { transform: translateX(0); pointer-events: all; }
-
-      /* Back button visible on mobile */
-      .ch-back-btn { display: flex !important; }
-
-      /* Hide non-essential header buttons */
-      .ch-actions .ch-btn:not(.ch-crisis) { display: none; }
-
-      /* Prevent iOS zoom on input focus */
-      .msg-textarea { font-size: 16px; }
-      .send-btn { width: 46px; height: 46px; font-size: 20px; }
-
-      .conv-item { padding: 14px; }
-      .safety-banner { font-size: 10px; padding: 6px 14px; }
-    }
-  
-/* ── Hamburger button ── */
-.hamburger{display:none;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:38px;height:38px;border-radius:9px;background:var(--sand,#F7F3EE);border:1px solid var(--border,#E8E4DE);cursor:pointer;padding:0;flex-shrink:0;}
-.hamburger span{display:block;width:18px;height:2px;background:var(--text-2,#5C5B57);border-radius:2px;transition:all .25s ease;}
-.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
-.hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0);}
-.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
-
-/* ── Sidebar overlay ── */
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:299;backdrop-filter:blur(2px);}
-.sidebar-overlay.active{display:block;}
-
-@media(max-width:900px){
-  .hamburger{display:flex;}
-  .layout{grid-template-columns:1fr;}
-  .sidebar{position:fixed;top:58px;left:0;bottom:0;z-index:300;transform:translateX(-100%);transition:transform .28s ease;height:calc(100vh - 58px);width:270px;box-shadow:4px 0 24px rgba(0,0,0,.12);}
-  .sidebar.mobile-open{transform:translateX(0);}
-  .main{padding:20px 16px;}
-}
-
-</style>
+  <title><?= clean($mc_title) ?></title>
+  <?php require_once '../../includes/assets.php'; ?>
 </head>
-<body>
+<body class="chat-module-open">
+<!-- ── Topbar ── -->
+<?php require_once '../../includes/topbar.php'; ?>
 
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-<!-- Topbar -->
-<header class="topbar">
-  <button class="hamburger" id="hamburgerBtn" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span><span></span></button>
-  <div class="topbar-brand">
-    <div class="topbar-mark">M</div>
-    <div>
-      <div class="topbar-name">CTU MindCare</div>
-      <div class="topbar-school">CTU Consolacion</div>
-    </div>
-  </div>
-  <div class="topbar-right">
-    <a class="user-chip" href="profile.php">
-      <div class="user-av-sm"><?= $my_initials ?></div>
-      <span class="user-name"><?= clean($user['first_name'].' '.$user['last_name']) ?></span>
-    </a>
-    <a class="logout-btn" href="../../auth/logout.php">Sign out</a>
-  </div>
-</header>
+<div class="layout">
 
-<div class="shell">
+  <!-- ── Sidebar ── -->
+  <?php $active_page = 'peer-chat'; ?>
+  <?php require_once '../../includes/sidebar.php'; ?>
 
-  <!-- ── Nav sidebar ── -->
-  <aside class="sidebar">
-    <div class="sb-section">
-      <span class="sb-label">My Wellness</span>
-      <a class="nav-item" href="dashboard.php"><div class="nav-icon">🏠</div> Dashboard</a>
-      <a class="nav-item" href="mood-checkin.php"><div class="nav-icon">😊</div> Daily check-in</a>
-      <a class="nav-item" href="assessment.php"><div class="nav-icon">📋</div> Assessments</a>
-      <a class="nav-item" href="csuq.php"><div class="nav-icon">💻</div> CSUQ survey</a>
-      <a class="nav-item" href="progress.php"><div class="nav-icon">📈</div> My progress</a>
-      <a class="nav-item" href="journal.php"><div class="nav-icon">📓</div> Wellness journal</a>
-    </div>
-    <div class="sb-divider"></div>
-    <div class="sb-section">
-      <span class="sb-label">Support</span>
-      <a class="nav-item" href="appointments.php"><div class="nav-icon">📅</div> Book appointment</a>
-      <a class="nav-item" href="counselor-chat.php"><div class="nav-icon">💬</div> Counselor chat</a>
-      <a class="nav-item" href="resources.php"><div class="nav-icon">📚</div> Resource library</a>
-    </div>
-    <div class="sb-divider"></div>
-    <div class="sb-section">
-      <span class="sb-label">Community</span>
-      <a class="nav-item" href="forum.php"><div class="nav-icon">🗣️</div> Peer forum</a>
-      <a class="nav-item active" href="peer-chat.php"><div class="nav-icon">💭</div> Peer chat</a>
-    </div>
-    <div class="sb-divider"></div>
-    <div class="sb-section">
-      <a class="nav-item crisis-nav" href="crisis.php"><div class="nav-icon">🆘</div> Crisis help</a>
-    </div>
-    <div class="sb-footer">
-      <div class="sb-user-card">
-        <div class="su-av"><?= $my_initials ?></div>
-        <div>
-          <div class="su-name"><?= clean($user['first_name'].' '.$user['last_name']) ?></div>
-          <div class="su-id"><?= clean($user['student_id'] ?? 'Student') ?></div>
+<!-- ── Chat shell ── -->
+  <div class="chat-wrap">
+
+    <div class="chat-layout">
+
+      <!-- Conversations pane -->
+      <div class="conv-pane" id="convPane">
+        <div class="cp-header">
+          <div class="cp-top">
+            <span class="cp-title"><i data-lucide="messages-square"></i> Peer Chat</span>
+            <button class="btn-new-chat" title="Search a student to chat" onclick="toggleSearch()"><i data-lucide="user-plus"></i></button>
+          </div>
+
+          <!-- Search new peer -->
+          <div class="peer-search-wrap" id="searchWrap" style="display:none">
+            <form method="GET" action="peer-chat.php" id="searchForm">
+              <i data-lucide="search" class="ps-icon"></i>
+              <input class="peer-search-input" type="text" name="search"
+                     id="searchInput"
+                     placeholder="Search students by name or ID…"
+                     value="<?= clean($search_q) ?>"
+                     autocomplete="off"
+                     oninput="debounceSearch(this.value)">
+            </form>
+            <div class="search-results" id="searchResults" style="<?= $search_q ? '' : 'display:none' ?>">
+              <?php if ($search_q && empty($search_results)): ?>
+                <div class="sr-empty">No students found for "<?= clean($search_q) ?>"</div>
+              <?php elseif ($search_results): ?>
+                <?php foreach ($search_results as $sr):
+                  $sr_init = strtoupper(substr($sr['first_name'],0,1).substr($sr['last_name'],0,1));
+                ?>
+                  <a class="sr-item" href="peer-chat.php?with=<?= $sr['id'] ?>">
+                    <div class="sr-av"><?= $sr_init ?></div>
+                    <div style="min-width:0">
+                      <div class="sr-name"><?= clean(peerName($sr)) ?></div>
+                      <div class="sr-id"><?= clean($sr['student_id'] ?? '') ?></div>
+                    </div>
+                  </a>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </aside>
 
-  <!-- ── Conversations pane ── -->
-  <div class="conv-pane">
-    <div class="cp-header">
-      <div class="cp-top">
-        <span class="cp-title">💭 Peer Chat</span>
-        <button class="btn-new-chat" title="Search a student to chat" onclick="toggleSearch()">＋</button>
-      </div>
-
-      <!-- Search new peer -->
-      <div class="peer-search-wrap" id="searchWrap" style="display:none">
-        <form method="GET" action="peer-chat.php" id="searchForm">
-          <span class="ps-icon">🔍</span>
-          <input class="peer-search-input" type="text" name="search"
-                 id="searchInput"
-                 placeholder="Search students by name or ID…"
-                 value="<?= clean($search_q) ?>"
-                 autocomplete="off"
-                 oninput="debounceSearch(this.value)">
-        </form>
-        <div class="search-results" id="searchResults" style="<?= $search_q ? '' : 'display:none' ?>">
-          <?php if ($search_q && empty($search_results)): ?>
-            <div class="sr-empty">No students found for "<?= clean($search_q) ?>"</div>
-          <?php elseif ($search_results): ?>
-            <?php foreach ($search_results as $sr):
-              $sr_init = strtoupper(substr($sr['first_name'],0,1).substr($sr['last_name'],0,1));
+        <!-- Conversation list -->
+        <div class="conv-list">
+          <?php if (empty($conversations)): ?>
+            <div class="cp-empty">
+              No chats yet.<br>
+              Click <strong>＋</strong> to find a student and start chatting.
+            </div>
+          <?php else: ?>
+            <?php foreach ($conversations as $c):
+              $is_a      = (int)$c['user_a'] === (int)$user['id'];
+              $peer      = [
+                  'first_name'   => $is_a ? $c['b_first'] : $c['a_first'],
+                  'last_name'    => $is_a ? $c['b_last']  : $c['a_last'],
+                  'display_name' => $is_a ? $c['b_display']:$c['a_display'],
+              ];
+              $peer_init = peerInitials($peer);
+              $peer_nm   = peerName($peer);
+              $is_active = ((int)$c['id'] === $active_conv_id);
+              $unread    = (int)$c['unread'];
+              $preview   = '';
+              if ($c['last_msg']) {
+                  $mine_prefix = (int)$c['last_sender'] === (int)$user['id'] ? 'You: ' : '';
+                  $preview = $mine_prefix . mb_substr(strip_tags($c['last_msg']), 0, 30) . (mb_strlen($c['last_msg']) > 30 ? '…' : '');
+              }
+              // Consistent avatar color based on peer ID
+              $peer_id  = $is_a ? (int)$c['user_b'] : (int)$c['user_a'];
+              $av_colors = ['#C4E8DC','#EEEDFE','#FDF3DF','#FAECE7','#E0F2FE','#F3E8FF'];
+              $av_bg     = $av_colors[$peer_id % count($av_colors)];
+              $av_fg_map = ['#C4E8DC'=>'#2D6B57','#EEEDFE'=>'#4B3FA0','#FDF3DF'=>'#7A4F0A','#FAECE7'=>'#8B3420','#E0F2FE'=>'#0369A1','#F3E8FF'=>'#6D28D9'];
+              $av_fg = $av_fg_map[$av_bg] ?? '#5C5B57';
             ?>
-              <a class="sr-item" href="peer-chat.php?with=<?= $sr['id'] ?>">
-                <div class="sr-av"><?= $sr_init ?></div>
-                <div>
-                  <div class="sr-name"><?= clean(peerName($sr)) ?></div>
-                  <div class="sr-id"><?= clean($sr['student_id'] ?? '') ?></div>
+              <a class="convo-item <?= $is_active ? 'active' : '' ?>"
+                 href="peer-chat.php?conv=<?= $c['id'] ?>">
+                <div class="c-av" style="background:<?= $av_bg ?>;color:<?= $av_fg ?>">
+                  <?= $peer_init ?>
+                  <?php if ($unread): ?><div class="unread-dot"></div><?php endif; ?>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-name"><?= clean($peer_nm) ?></div>
+                  <div class="conv-preview <?= $unread ? 'unread' : '' ?>">
+                    <?= $preview ? clean($preview) : 'No messages yet' ?>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+                  <?php if ($c['last_time']): ?>
+                    <span class="conv-time"><?= timeLabel($c['last_time']) ?></span>
+                  <?php endif; ?>
+                  <?php if ($unread): ?>
+                    <span class="conv-badge"><?= $unread ?></span>
+                  <?php endif; ?>
                 </div>
               </a>
             <?php endforeach; ?>
           <?php endif; ?>
         </div>
       </div>
-    </div>
 
-    <!-- Conversation list -->
-    <div class="conv-list">
-      <?php if (empty($conversations)): ?>
-        <div class="cp-empty">
-          No chats yet.<br>
-          Click <strong>＋</strong> to find a student and start chatting.
+      <!-- Chat pane -->
+      <div class="chat-pane" id="chatPane">
+
+        <?php if (!$active_conv || !$other_user): ?>
+        <!-- No conversation selected -->
+        <div class="empty-chat empty-state">
+          <div class="es-icon chat-big"><i data-lucide="messages-square"></i></div>
+          <div class="es-title">Peer Chat</div>
+          <div class="es-sub">
+            Connect privately with fellow students for mutual support.
+            Select a conversation or start a new one.
+          </div>
+          <div class="ep-tip" style="margin-top:14px;font-size:12px;color:var(--text-3);background:var(--surface-2);border-radius:10px;padding:10px 14px;line-height:1.6;max-width:300px">
+            Click <strong>＋</strong> in the left panel to search for a student and start chatting.
+          </div>
         </div>
-      <?php else: ?>
-        <?php foreach ($conversations as $c):
-          $is_a      = (int)$c['user_a'] === (int)$user['id'];
-          $peer      = [
-              'first_name'   => $is_a ? $c['b_first'] : $c['a_first'],
-              'last_name'    => $is_a ? $c['b_last']  : $c['a_last'],
-              'display_name' => $is_a ? $c['b_display']:$c['a_display'],
-          ];
-          $peer_init = peerInitials($peer);
-          $peer_nm   = peerName($peer);
-          $is_active = ((int)$c['id'] === $active_conv_id);
-          $unread    = (int)$c['unread'];
-          $preview   = '';
-          if ($c['last_msg']) {
-              $mine_prefix = (int)$c['last_sender'] === (int)$user['id'] ? 'You: ' : '';
-              $preview = $mine_prefix . mb_substr(strip_tags($c['last_msg']), 0, 30) . (mb_strlen($c['last_msg']) > 30 ? '…' : '');
-          }
-          // Consistent avatar color based on peer ID
-          $peer_id  = $is_a ? (int)$c['user_b'] : (int)$c['user_a'];
-          $av_colors = ['#C4E8DC','#EEEDFE','#FDF3DF','#FAECE7','#E0F2FE','#F3E8FF'];
-          $av_bg     = $av_colors[$peer_id % count($av_colors)];
-          $av_fg_map = ['#C4E8DC'=>'#2D6B57','#EEEDFE'=>'#4B3FA0','#FDF3DF'=>'#7A4F0A','#FAECE7'=>'#8B3420','#E0F2FE'=>'#0369A1','#F3E8FF'=>'#6D28D9'];
-          $av_fg = $av_fg_map[$av_bg] ?? '#5C5B57';
-        ?>
-          <a class="conv-item <?= $is_active ? 'active' : '' ?>"
-             href="peer-chat.php?conv=<?= $c['id'] ?>">
-            <div class="conv-av" style="background:<?= $av_bg ?>;color:<?= $av_fg ?>">
-              <?= $peer_init ?>
-              <?php if ($unread): ?><div class="unread-dot"></div><?php endif; ?>
-            </div>
-            <div class="conv-info">
-              <div class="conv-name"><?= clean($peer_nm) ?></div>
-              <div class="conv-preview <?= $unread ? 'unread' : '' ?>">
-                <?= $preview ? clean($preview) : 'No messages yet' ?>
+
+        <?php else: ?>
+
+        <!-- Safety banner -->
+        <div class="safety-banner">
+          <i data-lucide="leaf"></i> Be kind and supportive &nbsp;·&nbsp; <i data-lucide="lock"></i> Messages are private &nbsp;·&nbsp;
+          <a href="crisis.php"><i data-lucide="phone-call"></i> Crisis help</a>
+        </div>
+
+        <!-- Chat header -->
+        <div class="chat-header">
+          <button class="ch-back-btn" id="backToConvs" onclick="mobileShowConvs()" title="Back to conversations"><i data-lucide="arrow-left"></i></button>
+          <?php
+            $av_colors = ['#C4E8DC','#EEEDFE','#FDF3DF','#FAECE7','#E0F2FE','#F3E8FF'];
+            $av_fg_map = ['#C4E8DC'=>'#2D6B57','#EEEDFE'=>'#4B3FA0','#FDF3DF'=>'#7A4F0A','#FAECE7'=>'#8B3420','#E0F2FE'=>'#0369A1','#F3E8FF'=>'#6D28D9'];
+            $h_bg = $av_colors[$other_user['id'] % count($av_colors)];
+            $h_fg = $av_fg_map[$h_bg] ?? '#5C5B57';
+          ?>
+          <div class="ch-av" style="background:<?= $h_bg ?>;color:<?= $h_fg ?>"><?= $other_initials ?></div>
+          <div style="min-width:0">
+            <div class="chat-head-name"><?= clean(peerName($other_user)) ?></div>
+            <div class="chat-head-sub">Student &nbsp;·&nbsp; <i data-lucide="lock"></i> Private conversation</div>
+          </div>
+          <div class="ch-actions">
+            <a class="ch-btn" href="forum.php"><i data-lucide="messages-square"></i> Forum</a>
+            <a class="ch-btn ch-crisis" href="crisis.php"><i data-lucide="phone-call"></i> Crisis</a>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages" id="chatMessages">
+
+          <?php if (empty($messages)): ?>
+            <div class="no-msgs-state" id="emptyState">
+              <div class="no-msgs-icon"><i data-lucide="hand"></i></div>
+              <div class="no-msgs-title">Say hello!</div>
+              <div class="no-msgs-sub">
+                You haven't chatted with <?= clean(peerName($other_user)) ?> yet.
+                Send a message to start the conversation.
               </div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-              <?php if ($c['last_time']): ?>
-                <span class="conv-time"><?= timeLabel($c['last_time']) ?></span>
-              <?php endif; ?>
-              <?php if ($unread): ?>
-                <span class="conv-badge"><?= $unread ?></span>
-              <?php endif; ?>
+          <?php else: ?>
+            <div class="sys-msg" id="sysMsg">
+              <i data-lucide="messages-square"></i> Private conversation with <?= clean(peerName($other_user)) ?>
             </div>
-          </a>
-        <?php endforeach; ?>
-      <?php endif; ?>
-    </div>
-  </div>
+            <?php
+            $prev_date   = '';
+            $prev_sender = -1;
+            foreach ($messages as $i => $msg):
+              $is_mine     = (int)$msg['sender_id'] === (int)$user['id'];
+              $msg_date    = date('Y-m-d', strtotime($msg['sent_at']));
+              $new_group   = ($prev_sender !== (int)$msg['sender_id']);
 
-  <!-- ── Chat pane ── -->
-  <div class="chat-pane">
+              if ($msg_date !== $prev_date):
+                $dlabel = $msg_date === date('Y-m-d') ? 'Today'
+                        : ($msg_date === date('Y-m-d', strtotime('-1 day')) ? 'Yesterday'
+                        : date('F j, Y', strtotime($msg_date)));
+            ?>
+              <div class="date-sep"><span><?= $dlabel ?></span></div>
+            <?php
+                $prev_date = $msg_date;
+              endif;
 
-    <?php if (!$active_conv || !$other_user): ?>
-    <!-- No conversation selected -->
-    <div class="empty-pane">
-      <div class="ep-icon">💭</div>
-      <div class="ep-title">Peer Chat</div>
-      <div class="ep-sub">
-        Connect privately with fellow students for mutual support.
-        Select a conversation or start a new one.
-      </div>
-      <div class="ep-tip">
-        🔍 Click <strong>＋</strong> in the left panel to search for a student and start chatting.
-      </div>
-    </div>
+              $next      = $messages[$i+1] ?? null;
+              $show_time = !$next || (int)$next['sender_id'] !== (int)$msg['sender_id'];
+              $row_cls   = 'msg-row ' . ($is_mine ? 'mine' : 'theirs') . ($new_group ? ' new-group' : ' same-sender');
+              $av_cls    = $is_mine ? 'is-mine' : 'is-theirs';
+              $av_init   = $is_mine ? $my_initials : $other_initials;
+              $prev_sender = (int)$msg['sender_id'];
+            ?>
+              <div class="<?= $row_cls ?>" data-id="<?= (int)$msg['id'] ?>">
+                <div class="bub-av <?= $av_cls ?> <?= !$new_group ? 'hidden-av' : '' ?>"
+                     <?php if (!$is_mine): ?>style="background:<?= $h_bg ?>;color:<?= $h_fg ?>"<?php endif; ?>>
+                  <?= $av_init ?>
+                </div>
+                <div class="bub-wrap">
+                  <div class="bubble"><?= nl2br(clean($msg['message'])) ?></div>
+                  <?php if ($show_time): ?>
+                    <div class="msg-time"><?= timeFull($msg['sent_at']) ?>
+                      <?php if ($is_mine): ?>
+                        <span class="<?= $msg['is_read'] ? 'tick-read' : 'tick-sent' ?>" title="<?= $msg['is_read'] ? 'Read' : 'Sent' ?>"><?= $msg['is_read'] ? '✓✓' : '✓' ?></span>
+                      <?php endif; ?>
+                    </div>
+                  <?php endif; ?>
+                </div>
+              </div>
+            <?php endforeach; ?>
+          <?php endif; ?>
 
-    <?php else: ?>
-
-    <!-- Safety banner -->
-    <div class="safety-banner">
-      🌿 Be kind and supportive &nbsp;·&nbsp; 🔒 Messages are private &nbsp;·&nbsp;
-      <a href="crisis.php" style="color:var(--coral);font-weight:500;margin-left:4px">🆘 Crisis help</a>
-    </div>
-
-    <!-- Chat header -->
-    <div class="chat-header">
-      <button class="ch-back-btn" id="backToConvs" onclick="mobileShowConvs()" title="Back to conversations">&#8592;</button>
-      <?php
-        $av_colors = ['#C4E8DC','#EEEDFE','#FDF3DF','#FAECE7','#E0F2FE','#F3E8FF'];
-        $av_fg_map = ['#C4E8DC'=>'#2D6B57','#EEEDFE'=>'#4B3FA0','#FDF3DF'=>'#7A4F0A','#FAECE7'=>'#8B3420','#E0F2FE'=>'#0369A1','#F3E8FF'=>'#6D28D9'];
-        $h_bg = $av_colors[$other_user['id'] % count($av_colors)];
-        $h_fg = $av_fg_map[$h_bg] ?? '#5C5B57';
-      ?>
-      <div class="ch-av" style="background:<?= $h_bg ?>;color:<?= $h_fg ?>"><?= $other_initials ?></div>
-      <div>
-        <div class="ch-name"><?= clean(peerName($other_user)) ?></div>
-        <div class="ch-sub">Student &nbsp;·&nbsp; 🔒 Private conversation</div>
-      </div>
-      <div class="ch-actions">
-        <a class="ch-btn" href="forum.php">🗣 Forum</a>
-        <a class="ch-btn ch-crisis" href="crisis.php" style="color:var(--coral);border-color:#F5C6C2">🆘 Crisis</a>
-      </div>
-    </div>
-
-    <!-- Messages -->
-    <div class="chat-messages" id="chatMessages">
-
-      <?php if (empty($messages)): ?>
-        <div class="no-msgs" id="emptyState">
-          <div class="no-msgs-icon">👋</div>
-          <div class="no-msgs-title">Say hello!</div>
-          <div class="no-msgs-sub">
-            You haven't chatted with <?= clean(peerName($other_user)) ?> yet.
-            Send a message to start the conversation.
-          </div>
-        </div>
-      <?php else: ?>
-        <div class="sys-msg" id="sysMsg">
-          💭 Private conversation with <?= clean(peerName($other_user)) ?>
-        </div>
-        <?php
-        $prev_date   = '';
-        $prev_sender = -1;
-        foreach ($messages as $i => $msg):
-          $is_mine     = (int)$msg['sender_id'] === (int)$user['id'];
-          $msg_date    = date('Y-m-d', strtotime($msg['sent_at']));
-          $new_group   = ($prev_sender !== (int)$msg['sender_id']);
-
-          if ($msg_date !== $prev_date):
-            $dlabel = $msg_date === date('Y-m-d') ? 'Today'
-                    : ($msg_date === date('Y-m-d', strtotime('-1 day')) ? 'Yesterday'
-                    : date('F j, Y', strtotime($msg_date)));
-        ?>
-          <div class="date-sep"><?= $dlabel ?></div>
-        <?php
-            $prev_date = $msg_date;
-          endif;
-
-          $next      = $messages[$i+1] ?? null;
-          $show_time = !$next || (int)$next['sender_id'] !== (int)$msg['sender_id'];
-          $row_cls   = 'msg-row ' . ($is_mine ? 'mine' : 'theirs') . ($new_group ? ' new-group' : '');
-          $av_cls    = $is_mine ? 'is-mine' : 'is-theirs';
-          $av_init   = $is_mine ? $my_initials : $other_initials;
-          $prev_sender = (int)$msg['sender_id'];
-        ?>
-          <div class="<?= $row_cls ?>" data-id="<?= (int)$msg['id'] ?>">
-            <div class="bub-av <?= $av_cls ?> <?= !$new_group ? 'hidden-av' : '' ?>"
-                 <?php if (!$is_mine): ?>style="background:<?= $h_bg ?>;color:<?= $h_fg ?>"<?php endif; ?>>
-              <?= $av_init ?>
-            </div>
-            <div class="bub-wrap">
-              <div class="bubble"><?= nl2br(clean($msg['message'])) ?></div>
-              <?php if ($show_time): ?>
-                <div class="msg-time"><?= timeFull($msg['sent_at']) ?></div>
-              <?php endif; ?>
+          <!-- Typing indicator -->
+          <div class="typing-row" id="typingRow">
+            <div class="bub-av is-theirs" style="background:<?= $h_bg ?? 'var(--surface-3)' ?>;color:<?= $h_fg ?? 'var(--text-2)' ?>"><?= $other_initials ?></div>
+            <div class="typing-bubble">
+              <div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div>
             </div>
           </div>
-        <?php endforeach; ?>
-      <?php endif; ?>
 
-      <!-- Typing indicator -->
-      <div class="typing-row" id="typingRow">
-        <div class="bub-av is-theirs" style="background:<?= $h_bg ?? 'var(--lav-light)' ?>;color:<?= $h_fg ?? 'var(--lav)' ?>"><?= $other_initials ?></div>
-        <div class="typing-dots">
-          <div class="t-dot"></div><div class="t-dot"></div><div class="t-dot"></div>
+        </div><!-- .chat-messages -->
+
+        <!-- Input -->
+        <div class="chat-input-area">
+          <div class="input-row">
+            <textarea
+              class="msg-textarea"
+              id="msgInput"
+              placeholder="Message <?= clean(peerName($other_user)) ?>…"
+              rows="1"
+              maxlength="2000"
+              onkeydown="handleKey(event)"
+              oninput="onInput(this)"
+            ></textarea>
+            <button class="send-btn" id="sendBtn" disabled title="Send" onclick="sendMessage()">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <div class="input-hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line &nbsp;·&nbsp; <i data-lucide="lock" style="width:10px;height:10px;vertical-align:-1px"></i> Private</div>
         </div>
-      </div>
 
-    </div><!-- .chat-messages -->
+        <?php endif; ?>
 
-    <!-- Input -->
-    <div class="chat-input-area">
-      <div class="input-row">
-        <textarea
-          class="msg-textarea"
-          id="msgInput"
-          placeholder="Message <?= clean(peerName($other_user)) ?>…"
-          rows="1"
-          maxlength="2000"
-          onkeydown="handleKey(event)"
-          oninput="onInput(this)"
-        ></textarea>
-        <button class="send-btn" id="sendBtn" disabled title="Send" onclick="sendMessage()">➤</button>
-      </div>
-      <div class="input-hint">Enter to send &nbsp;·&nbsp; Shift+Enter for new line &nbsp;·&nbsp; 🔒 Private</div>
-    </div>
+      </div><!-- .chat-pane -->
 
-    <?php endif; ?>
-
-  </div><!-- .chat-pane -->
-</div><!-- .shell -->
+    </div><!-- .chat-layout -->
+  </div><!-- .chat-wrap -->
+</div><!-- .layout -->
 
 <script>
 const CONV_ID    = <?= (int)$active_conv_id ?>;
 const MY_ID      = <?= (int)$user['id'] ?>;
 const MY_INIT    = '<?= $my_initials ?>';
 const OTHER_INIT = '<?= $other_initials ?>';
-const OTHER_BG   = '<?= $h_bg ?? 'var(--lav-light)' ?>';
-const OTHER_FG   = '<?= $h_fg ?? 'var(--lav)' ?>';
+const OTHER_BG   = '<?= $h_bg ?? 'var(--surface-3)' ?>';
+const OTHER_FG   = '<?= $h_fg ?? 'var(--text-2)' ?>';
 let   lastId     = <?= $last_id ?>;
 let   pollTimer  = null;
 let   sending    = false;
@@ -829,14 +492,16 @@ let   sending    = false;
 function onInput(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(120, el.scrollHeight) + 'px';
-  document.getElementById('sendBtn').disabled = el.value.trim() === '';
+  const btn = document.getElementById('sendBtn');
+  if (btn) btn.disabled = el.value.trim() === '';
 }
 
 // ── Enter key ─────────────────────────────────────────────────
 function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
-    if (!document.getElementById('sendBtn').disabled) sendMessage();
+    const btn = document.getElementById('sendBtn');
+    if (btn && !btn.disabled) sendMessage();
   }
 }
 
@@ -844,11 +509,13 @@ function handleKey(e) {
 async function sendMessage() {
   if (sending || !CONV_ID) return;
   const inp = document.getElementById('msgInput');
+  if (!inp) return;
   const txt = inp.value.trim();
   if (!txt) return;
 
   sending = true;
-  document.getElementById('sendBtn').disabled = true;
+  const btn = document.getElementById('sendBtn');
+  if (btn) btn.disabled = true;
 
   addBubble({ id: 'tmp_' + Date.now(), sender_id: MY_ID, message: txt, sent_at: new Date().toISOString() }, true);
   inp.value = '';
@@ -873,7 +540,7 @@ async function sendMessage() {
   } catch(e) { console.error(e); }
 
   sending = false;
-  document.getElementById('sendBtn').disabled = inp.value.trim() === '';
+  if (btn) btn.disabled = inp.value.trim() === '';
 }
 
 // ── Append bubble ─────────────────────────────────────────────
@@ -886,7 +553,7 @@ function addBubble(msg, isMine) {
   if (!document.getElementById('sysMsg')) {
     const s = document.createElement('div');
     s.id = 'sysMsg'; s.className = 'sys-msg';
-    s.textContent = '💭 Private conversation';
+    s.innerHTML = '<i data-lucide="messages-square"></i> Private conversation';
     wrap.insertBefore(s, wrap.firstChild);
   }
 
@@ -895,7 +562,7 @@ function addBubble(msg, isMine) {
   const newGroup  = !lastRow || (isMine ? !lastRow.classList.contains('mine') : !lastRow.classList.contains('theirs'));
 
   const row = document.createElement('div');
-  row.className = 'msg-row ' + (isMine ? 'mine' : 'theirs') + (newGroup ? ' new-group' : '');
+  row.className = 'msg-row ' + (isMine ? 'mine' : 'theirs') + (newGroup ? ' new-group' : ' same-sender');
   row.dataset.id = msg.id;
 
   const text  = String(msg.message).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
@@ -903,12 +570,15 @@ function addBubble(msg, isMine) {
   const avCls = isMine ? 'is-mine' : 'is-theirs';
   const avStyle = isMine ? '' : `style="background:${OTHER_BG};color:${OTHER_FG}"`;
   const hidAv  = newGroup ? '' : 'hidden-av';
+  const readMark = isMine
+    ? `<span class="${msg.is_read ? 'tick-read' : 'tick-sent'}" title="${msg.is_read ? 'Read' : 'Sent'}">${msg.is_read ? '✓✓' : '✓'}</span>`
+    : '';
 
   row.innerHTML = `
     <div class="bub-av ${avCls} ${hidAv}" ${avStyle}>${avInit}</div>
     <div class="bub-wrap">
       <div class="bubble">${text}</div>
-      <div class="msg-time">${fmtTime(msg.sent_at)}</div>
+      <div class="msg-time">${fmtTime(msg.sent_at)} ${readMark}</div>
     </div>
   `;
 
@@ -925,7 +595,20 @@ function startPoll() {
       const data = await res.json();
       if (data.messages?.length) {
         data.messages.forEach(m => {
-          if (parseInt(m.sender_id) !== MY_ID) {
+          const id = parseInt(m.id, 10);
+          if (parseInt(m.sender_id, 10) === MY_ID) {
+            const existing = document.querySelector(`[data-id="${id}"]`);
+            if (existing) {
+              const tick = existing.querySelector('.tick-sent');
+              if (tick && m.is_read) {
+                tick.className = 'tick-read';
+                tick.textContent = '✓✓';
+              }
+            } else {
+              addBubble(m, true);
+              scrollBottom();
+            }
+          } else {
             showTyping();
             setTimeout(() => {
               hideTyping();
@@ -933,7 +616,7 @@ function startPoll() {
               scrollBottom();
             }, 500);
           }
-          lastId = Math.max(lastId, parseInt(m.id));
+          lastId = Math.max(lastId, id);
         });
       }
     } catch(e) { /* silent */ }
@@ -962,12 +645,14 @@ function fmtTime(iso) {
 function toggleSearch() {
   const wrap = document.getElementById('searchWrap');
   const inp  = document.getElementById('searchInput');
+  if (!wrap) return;
   if (wrap.style.display === 'none') {
     wrap.style.display = 'block';
     setTimeout(() => inp?.focus(), 50);
   } else {
     wrap.style.display = 'none';
-    document.getElementById('searchResults').style.display = 'none';
+    const res = document.getElementById('searchResults');
+    if (res) res.style.display = 'none';
   }
 }
 
@@ -976,6 +661,7 @@ let searchTimer = null;
 function debounceSearch(val) {
   clearTimeout(searchTimer);
   const results = document.getElementById('searchResults');
+  if (!results) return;
   if (!val.trim()) { results.style.display = 'none'; return; }
   searchTimer = setTimeout(async () => {
     try {
@@ -999,23 +685,24 @@ function debounceSearch(val) {
 document.addEventListener('click', e => {
   const wrap = document.getElementById('searchWrap');
   if (wrap && !wrap.contains(e.target) && !e.target.closest('.btn-new-chat')) {
-    document.getElementById('searchResults').style.display = 'none';
+    const res = document.getElementById('searchResults');
+    if (res) res.style.display = 'none';
   }
 });
 
 // ── Mobile panel switching ────────────────────────────────────
 function mobileShowChat() {
   if (window.innerWidth > 600) return;
-  document.querySelector('.conv-pane')?.classList.add('hidden-mobile');
-  document.querySelector('.chat-pane')?.classList.add('active-mobile');
+  document.querySelector('.chat-wrap .conv-pane')?.classList.add('hidden-mobile');
+  document.querySelector('.chat-wrap .chat-pane')?.classList.add('active-mobile');
 }
 function mobileShowConvs() {
-  document.querySelector('.conv-pane')?.classList.remove('hidden-mobile');
-  document.querySelector('.chat-pane')?.classList.remove('active-mobile');
+  document.querySelector('.chat-wrap .conv-pane')?.classList.remove('hidden-mobile');
+  document.querySelector('.chat-wrap .chat-pane')?.classList.remove('active-mobile');
 }
 
 // Make conv items trigger mobile panel switch
-document.querySelectorAll('.conv-item').forEach(function(item) {
+document.querySelectorAll('.convo-item').forEach(function(item) {
   item.addEventListener('click', function() {
     if (window.innerWidth <= 600) mobileShowChat();
   });
@@ -1046,25 +733,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Show search if search was active
   <?php if ($search_q): ?>
   document.getElementById('searchWrap').style.display = 'block';
-  document.getElementById('searchResults').style.display = 'block';
+  const sr = document.getElementById('searchResults');
+  if (sr) sr.style.display = 'block';
   <?php endif; ?>
 });
 window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
 </script>
 
-<script>
-(function(){
-  var btn = document.getElementById('hamburgerBtn');
-  var sb  = document.querySelector('.sidebar');
-  var ov  = document.getElementById('sidebarOverlay');
-  if(!btn||!sb||!ov) return;
-  function open(){sb.classList.add('mobile-open');ov.classList.add('active');btn.classList.add('open');btn.setAttribute('aria-expanded','true');document.body.style.overflow='hidden';}
-  function close(){sb.classList.remove('mobile-open');ov.classList.remove('active');btn.classList.remove('open');btn.setAttribute('aria-expanded','false');document.body.style.overflow='';}
-  btn.addEventListener('click',function(){sb.classList.contains('mobile-open')?close():open();});
-  ov.addEventListener('click',close);
-  sb.querySelectorAll('.nav-item').forEach(function(l){l.addEventListener('click',function(){if(window.innerWidth<=900)close();});});
-  window.addEventListener('resize',function(){if(window.innerWidth>900)close();});
-})();
-</script>
+<?php require_once '../../includes/chatbot_widget.php'; ?>
 </body>
 </html>

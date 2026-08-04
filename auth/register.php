@@ -57,97 +57,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+$mc_title = 'Create Account — CTU MindCare';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Create Account — CTU MindCare</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --sage:#4A9B7F;--sage-2:#5BAF91;--sage-light:#EAF7F2;--sage-mid:#C4E8DC;--sage-dark:#2D6B57;
-  --sand:#F7F3EE;--sand-2:#EDE8E1;--sand-3:#D9D3C9;--blush:#F5EDE8;
-  --text:#2C2C2A;--text-2:#5C5B57;--text-3:#9A9891;--white:#FFFFFF;--coral:#D96B52;
-  --lav:#7B6FC4;--lav-2:#6B5FB4;--lav-light:#EEEDFE;
-}
-body{font-family:'DM Sans',sans-serif;background:var(--sand);min-height:100vh;display:grid;grid-template-columns:1fr 1fr;}
-
-/* ── Left panel ── */
-.left-panel{background:var(--sage);padding:48px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}
-.left-panel::before{content:'';position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:rgba(255,255,255,.08);}
-.left-panel::after{content:'';position:absolute;bottom:-100px;left:-60px;width:280px;height:280px;border-radius:50%;background:rgba(255,255,255,.06);}
-.brand{display:flex;align-items:center;gap:12px;position:relative;z-index:1;}
-.brand-mark{width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:22px;color:#fff;border:1px solid rgba(255,255,255,.3);}
-.brand-name{font-family:'DM Serif Display',serif;font-size:20px;color:#fff;letter-spacing:.2px;}
-.brand-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:2px}
-.hero-text{position:relative;z-index:1;}
-.hero-title{font-family:'DM Serif Display',serif;font-size:38px;line-height:1.2;color:#fff;margin-bottom:16px;}
-.hero-title em{font-style:italic;color:rgba(255,255,255,.75)}
-.hero-body{font-size:14px;color:rgba(255,255,255,.75);line-height:1.7;max-width:340px;}
-.quotes{position:relative;z-index:1;}
-.quote-card{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:20px 22px;}
-.quote-text{font-family:'DM Serif Display',serif;font-style:italic;font-size:15px;color:#fff;line-height:1.6;margin-bottom:12px;}
-.quote-author{font-size:11px;color:rgba(255,255,255,.55);}
-
-/* ── Right panel ── */
-.right-panel{display:flex;align-items:center;justify-content:center;padding:48px 40px;background:var(--sand);overflow-y:auto;}
-.form-box{width:100%;max-width:480px;animation:fadein .5s ease both}
-@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-.form-greeting{font-family:'DM Serif Display',serif;font-size:28px;color:var(--text);margin-bottom:6px;}
-.form-sub{font-size:13px;color:var(--text-3);margin-bottom:24px;line-height:1.5}
-
-/* ── Alerts ── */
-.alert{padding:11px 14px;border-radius:9px;font-size:13px;margin-bottom:20px;line-height:1.5;display:flex;align-items:flex-start;gap:8px;}
-.alert-error{background:#FBEDED;border:1px solid #F5C6C2;color:#8B2020;}
-.alert-success{background:var(--sage-light);border:1px solid var(--sage-mid);color:var(--sage-dark);}
-.alert-icon{font-size:14px;flex-shrink:0;margin-top:1px}
-
-/* ── Form fields ── */
-.form-group{margin-bottom:18px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.form-label{display:block;font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:7px;letter-spacing:.2px;}
-.form-label-opt{font-size:10px;font-weight:400;color:var(--text-3);text-transform:none;}
-.form-input{width:100%;padding:12px 16px;background:var(--white);border:1.5px solid var(--sand-3);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;}
-.form-input:focus{border-color:var(--sage);box-shadow:0 0 0 4px rgba(74,155,127,.10);}
-.form-input::placeholder{color:var(--text-3)}
-.form-hint{font-size:11px;color:var(--text-3);margin-top:5px;line-height:1.5;}
-.input-wrap{position:relative}
-.input-wrap .form-input{padding-right:54px}
-.pw-toggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:11px;font-weight:500;color:var(--sage);font-family:'DM Sans',sans-serif;}
-.pw-toggle:hover{color:var(--sage-2)}
-
-/* ── Password bar ── */
-.pw-bar{height:3px;border-radius:2px;background:var(--sand-3);margin-top:8px;overflow:hidden}
-.pw-fill{height:100%;border-radius:2px;width:0%;transition:width .3s,background .3s}
-.pw-label{font-size:11px;margin-top:4px;font-weight:500}
-
-/* ── Consent ── */
-.consent-wrap{background:var(--sage-light);border:1px solid var(--sage-mid);border-radius:10px;padding:16px;display:flex;gap:12px;align-items:flex-start;margin-bottom:20px;}
-.consent-wrap.has-error{background:#FBEDED;border-color:#F5C6C2}
-.consent-wrap input[type=checkbox]{margin-top:2px;flex-shrink:0;accent-color:var(--sage);width:15px;height:15px;cursor:pointer}
-.consent-text{font-size:12px;color:var(--sage-dark);line-height:1.65}
-.consent-wrap.has-error .consent-text{color:#8B2020}
-
-/* ── Submit button ── */
-.btn-primary{width:100%;padding:13px;color:#fff;background:var(--sage);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:background .2s,transform .1s;margin-top:4px;}
-.btn-primary:hover{background:var(--sage-2)}
-.btn-primary:active{transform:scale(.99)}
-
-/* ── Footer ── */
-.form-footer{text-align:center;font-size:13px;color:var(--text-3);margin-top:22px;}
-.form-footer a{color:var(--sage);font-weight:500;text-decoration:none;}
-.form-footer a:hover{text-decoration:underline}
-
-/* ── Section divider ── */
-.section-title{font-size:10px;font-weight:600;color:var(--sage-dark);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--sage-light)}
-
-@media(max-width:768px){body{grid-template-columns:1fr}.left-panel{display:none}.right-panel{padding:28px 20px}.form-box{max-width:100%}.form-row{grid-template-columns:1fr}}
-</style>
+<?php require_once '../includes/assets.php'; ?>
 </head>
-<body>
+<body class="auth-body">
 
 <!-- ── Left panel ── -->
 <div class="left-panel">
@@ -172,14 +91,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--sand);min-height:100vh;di
 
 <!-- ── Right panel ── -->
 <div class="right-panel">
-  <div class="form-box">
-    <div class="form-greeting">Create your account 🎯</div>
+  <div class="form-box" style="max-width:480px">
+    <div class="form-greeting">Create your account</div>
     <p class="form-sub">Join CTU MindCare and start your wellness journey today.</p>
 
     <!-- Error alerts -->
     <?php if (!empty($errors)): ?>
       <div class="alert alert-error">
-        <span class="alert-icon">!</span>
+        <span class="alert-icon"><i data-lucide="alert-triangle"></i></span>
         <div>
           <strong style="display:block;margin-bottom:4px">Please fix these issues:</strong>
           <div><?php echo implode('<br>', array_map('clean', $errors)); ?></div>
@@ -260,7 +179,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--sand);min-height:100vh;di
         </label>
       </div>
 
-      <button class="btn-primary" type="submit">Create my account →</button>
+      <button class="btn btn-primary" type="submit" style="width:100%;margin-top:4px">
+        <i data-lucide="user-plus"></i> Create my account
+      </button>
 
     </form>
 
@@ -270,6 +191,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--sand);min-height:100vh;di
 
   </div>
 </div>
+
+<!-- Floating dark-mode toggle -->
+<button type="button" class="mc-theme-float mc-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+  <i data-lucide="moon" class="icon-moon"></i>
+  <i data-lucide="sun" class="icon-sun"></i>
+</button>
 
 <script>
 function togglePw(id, btn) {
@@ -284,14 +211,12 @@ function checkPw(v) {
   if (/[A-Z]/.test(v)) s++;
   if (/[0-9]/.test(v)) s++;
   const fills = ['0%','30%','60%','100%'];
-  const colors = ['','#C03030','#D4860A','#4A9B7F'];
-  const labels = ['','Weak','Fair','Strong'];
   const fill = document.getElementById('pw-fill');
   const label = document.getElementById('pw-label');
   fill.style.width = v ? fills[s] : '0%';
-  fill.style.background = colors[s] || '';
-  label.textContent = v && s ? labels[s] : '';
-  label.style.color = colors[s] || '';
+  fill.style.background = s === 0 ? '' : (s < 3 ? 'var(--amber)' : 'var(--teal)');
+  label.textContent = v && s ? (s < 3 ? 'Fair' : 'Strong') : '';
+  label.style.color = s === 0 ? '' : (s < 3 ? 'var(--amber)' : 'var(--teal)');
 }
 
 document.getElementById('cpw')?.addEventListener('input', function () {
@@ -300,10 +225,10 @@ document.getElementById('cpw')?.addEventListener('input', function () {
   if (!this.value) { hint.textContent = ''; return; }
   if (this.value === pw) {
     hint.textContent = '✓ Passwords match';
-    hint.style.color = '#2D6B57';
+    hint.style.color = 'var(--teal)';
   } else {
     hint.textContent = '✗ Passwords do not match';
-    hint.style.color = '#C03030';
+    hint.style.color = 'var(--red)';
   }
 });
 </script>

@@ -165,404 +165,49 @@ $flash = getFlash();
 // ── Helpers ──────────────────────────────────────────────────
 function statusBadge(string $s): array {
     return match($s) {
-        'pending'   => ['bg' => '#FDF3DF', 'color' => '#7A4F0A', 'border' => '#FAC775', 'label' => 'Pending'],
-        'confirmed' => ['bg' => '#EAF7F2', 'color' => '#2D6B57', 'border' => '#C4E8DC', 'label' => 'Confirmed'],
-        'cancelled' => ['bg' => '#F7F3EE', 'color' => '#9A9891', 'border' => '#D9D3C9', 'label' => 'Cancelled'],
-        'completed' => ['bg' => '#EEEDFE', 'color' => '#4B3FA0', 'border' => '#CBC6F0', 'label' => 'Completed'],
-        default     => ['bg' => '#F7F3EE', 'color' => '#9A9891', 'border' => '#D9D3C9', 'label' => ucfirst($s)],
+        'pending'   => ['cls' => 'badge-pending',   'label' => 'Pending'],
+        'confirmed' => ['cls' => 'badge-confirmed', 'label' => 'Confirmed'],
+        'cancelled' => ['cls' => 'badge-cancelled', 'label' => 'Cancelled'],
+        'completed' => ['cls' => 'badge-completed', 'label' => 'Completed'],
+        default     => ['cls' => 'badge-gray',      'label' => ucfirst($s)],
     };
 }
 function statusIcon(string $s): string {
     return match($s) {
-        'pending'   => '⏳',
-        'confirmed' => '✅',
-        'cancelled' => '✗',
-        'completed' => '🎓',
-        default     => '•',
+        'pending'   => 'clock',
+        'confirmed' => 'check-circle',
+        'cancelled' => 'x-circle',
+        'completed' => 'graduation-cap',
+        default     => 'circle',
     };
 }
+$mc_title = 'Appointments';
+require_once '../../includes/assets.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Appointments — CTU MindCare</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-  <style>
-    /* ── Variables ── */
-    :root {
-      --sage:       #4A9B7F;
-      --sage-2:     #3d8a6f;
-      --sage-dark:  #2D6B57;
-      --sage-mid:   #C4E8DC;
-      --sage-light: #EAF7F2;
-      --sand:       #F7F3EE;
-      --sand-2:     #EDE8E1;
-      --sand-3:     #D9D3C9;
-      --white:      #FFFFFF;
-      --text:       #2C2C2A;
-      --text-2:     #5C5B57;
-      --text-3:     #9A9891;
-      --border:     #E8E4DE;
-      --red:        #D64545;
-      --amber:      #D4860A;
-      --amber-light:#FDF3DF;
-      --coral:      #D96B52;
-      --coral-light:#FAECE7;
-      --lav:        #7B6FC4;
-      --lav-light:  #EEEDFE;
-      --topbar-h:   58px;
-      --sidebar-w:  230px;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14px; color: var(--text);
-      background: var(--sand); min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-    }
-    a { text-decoration: none; color: inherit; }
-
-    /* ── Topbar ── */
-    .topbar {
-      height: var(--topbar-h); background: var(--white);
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; padding: 0 24px;
-      position: sticky; top: 0; z-index: 200; gap: 16px;
-    }
-    .topbar-brand  { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-    .topbar-mark   { width: 34px; height: 34px; background: var(--sage); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; font-size: 17px; color: #fff; }
-    .topbar-name   { font-family: 'DM Serif Display', serif; font-size: 17px; color: var(--text); }
-    .topbar-school { font-size: 10px; color: var(--text-3); margin-top: 1px; }
-    .topbar-right  { display: flex; align-items: center; gap: 12px; }
-    .user-chip     { display: flex; align-items: center; gap: 8px; background: var(--sage-light); border: 1px solid var(--sage-mid); border-radius: 100px; padding: 5px 14px 5px 6px; }
-    .user-av       { width: 26px; height: 26px; border-radius: 50%; background: var(--sage); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #fff; }
-    .user-name     { font-size: 12px; font-weight: 500; color: var(--sage-dark); }
-    .logout-btn    { font-size: 12px; color: var(--text-3); padding: 6px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--white); transition: color .15s, border-color .15s; }
-    .logout-btn:hover { color: var(--coral); border-color: var(--coral); }
-
-    /* ── Layout ── */
-    .layout { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: calc(100vh - var(--topbar-h)); }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      background: var(--white); border-right: 1px solid var(--border);
-      padding: 20px 0; position: sticky; top: var(--topbar-h);
-      height: calc(100vh - var(--topbar-h)); overflow-y: auto;
-      display: flex; flex-direction: column;
-    }
-    .sb-section   { padding: 0 14px; margin-bottom: 6px; }
-    .sb-label     { font-size: 9px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; padding: 0 8px; margin-bottom: 4px; display: block; }
-    .nav-item     { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; font-size: 13px; color: var(--text-2); text-decoration: none; transition: all .12s; margin-bottom: 1px; }
-    .nav-item:hover { background: var(--sand); color: var(--text); }
-    .nav-item.active { background: var(--sage-light); color: var(--sage-dark); font-weight: 500; }
-    .nav-icon     { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; background: var(--sand); }
-    .nav-item.active .nav-icon { background: var(--sage-mid); }
-    .nav-item.crisis-nav { color: var(--coral); }
-    .nav-item.crisis-nav:hover { background: var(--coral-light); }
-    .nav-item.crisis-nav .nav-icon { background: var(--coral-light); }
-    .sb-divider   { height: 1px; background: var(--border); margin: 10px 14px; }
-    .sb-footer    { margin-top: auto; padding: 14px; }
-    .sb-user-card { background: var(--sand); border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px; }
-    .su-av        { width: 32px; height: 32px; border-radius: 50%; background: var(--sage-mid); color: var(--sage-dark); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .su-name      { font-size: 12px; font-weight: 500; color: var(--text); }
-    .su-id        { font-size: 10px; color: var(--text-3); margin-top: 1px; }
-
-    /* ── Main ── */
-    .main { padding: 28px 28px 56px; }
-
-    /* ── Flash ── */
-    .flash { padding: 11px 16px; border-radius: 9px; font-size: 13px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
-    .flash-success { background: var(--sage-light); border: 1px solid var(--sage-mid); color: var(--sage-dark); }
-    .flash-warning { background: var(--amber-light); border: 1px solid #FAC775; color: #412402; }
-    .flash-error   { background: #FBEDED; border: 1px solid #F5C6C2; color: #8B2020; }
-
-    /* ── Page header ── */
-    .page-header { margin-bottom: 24px; }
-    .page-title  { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--text); margin-bottom: 4px; }
-    .page-sub    { font-size: 13px; color: var(--text-3); line-height: 1.6; }
-
-    /* ── Two-column grid ── */
-    .page-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
-
-    /* ── Card base ── */
-    .card         { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
-    .card-title   { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-    .card-sub     { font-size: 12px; color: var(--text-3); margin-bottom: 18px; }
-    .card-divider { height: 1px; background: var(--border); margin: 18px 0; }
-
-    /* ── Error box ── */
-    .error-box { display: flex; align-items: flex-start; gap: 10px; background: #FBEDED; border: 1px solid #F5C6C2; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #7A1A1A; margin-bottom: 18px; }
-
-    /* ── Form elements ── */
-    .form-group   { margin-bottom: 16px; }
-    .form-label   { display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; letter-spacing: .01em; }
-    .form-hint    { font-size: 11px; color: var(--text-3); margin-top: 4px; }
-
-    .form-select, .form-input, .form-textarea {
-      width: 100%; padding: 10px 12px;
-      background: var(--sand); border: 1.5px solid var(--border);
-      border-radius: 9px; font-family: 'DM Sans', sans-serif;
-      font-size: 13px; color: var(--text); outline: none;
-      transition: border-color .15s, background .15s, box-shadow .15s;
-      appearance: none; -webkit-appearance: none;
-    }
-    .form-select:focus, .form-input:focus, .form-textarea:focus {
-      background: var(--white); border-color: var(--sage);
-      box-shadow: 0 0 0 3px rgba(74,155,127,.1);
-    }
-    .form-select option { background: var(--white); }
-    .form-textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
-    .select-wrap  { position: relative; }
-    .select-arrow {
-      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-      pointer-events: none; color: var(--text-3); font-size: 11px;
-    }
-
-    /* ── Time slot grid ── */
-    .time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 4px; }
-    .time-slot-radio { display: none; }
-    .time-slot-label {
-      display: flex; align-items: center; justify-content: center;
-      padding: 9px 6px; border-radius: 8px; border: 1.5px solid var(--border);
-      font-size: 12px; font-weight: 500; color: var(--text-2);
-      cursor: pointer; transition: all .12s; background: var(--white);
-      text-align: center; user-select: none;
-    }
-    .time-slot-label:hover { border-color: var(--sage); color: var(--sage); background: var(--sage-light); }
-    .time-slot-radio:checked + .time-slot-label { background: var(--sage); border-color: var(--sage); color: #fff; }
-    .time-slot-label.booked { background: var(--sand-2); border-color: var(--border); color: var(--sand-3); cursor: not-allowed; text-decoration: line-through; }
-
-    /* ── Counselor cards (clickable divs) ── */
-    .counselor-grid  { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-    .counselor-card  { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 10px; border: 1.5px solid var(--border); cursor: pointer; transition: all .15s; background: var(--white); user-select: none; }
-    .counselor-card:hover   { border-color: var(--sage-mid); background: var(--sage-light); }
-    .counselor-card.selected { border-color: var(--sage); background: var(--sage-light); }
-    .counselor-av    { width: 38px; height: 38px; border-radius: 50%; background: var(--sage-mid); color: var(--sage-dark); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .counselor-name  { font-size: 13px; font-weight: 500; color: var(--text); }
-    .counselor-role  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
-    .counselor-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; transition: all .15s; flex-shrink: 0; }
-    .counselor-card.selected .counselor-check { background: var(--sage); border-color: var(--sage); color: #fff; }
-
-    /* ── Next / Back step buttons ── */
-    .btn-next { width: 100%; padding: 13px; background: var(--sage); color: #fff; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, transform .1s; }
-    .btn-next:hover   { background: var(--sage-2); }
-    .btn-next:active  { transform: scale(.99); }
-    .btn-next:disabled { background: var(--sand-3); cursor: not-allowed; }
-    .btn-back-step { padding: 13px 20px; background: var(--white); color: var(--text-2); border: 1.5px solid var(--border); border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: border-color .15s; white-space: nowrap; }
-    .btn-back-step:hover { border-color: var(--sage); color: var(--sage); }
-
-    /* ── Recap bar ── */
-    .recap-bar { display: flex; align-items: center; gap: 10px; background: var(--sage-light); border: 1px solid var(--sage-mid); border-radius: 9px; padding: 10px 12px; font-size: 12px; color: var(--sage-dark); font-weight: 500; }
-
-    /* ── Submit button ── */
-    .btn-book { width: 100%; padding: 13px; background: var(--sage); color: #fff; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background .15s, transform .1s; }
-    .btn-book:hover  { background: var(--sage-2); }
-    .btn-book:active { transform: scale(.99); }
-    .btn-book:disabled { background: var(--sand-3); cursor: not-allowed; }
-
-    /* ── Mini calendar ── */
-    .mini-cal { margin-top: 4px; }
-    .cal-nav  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .cal-nav-btn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 7px; background: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: border-color .12s; }
-    .cal-nav-btn:hover { border-color: var(--sage); }
-    .cal-month { font-size: 13px; font-weight: 600; color: var(--text); }
-    .cal-grid  { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-    .cal-dow   { font-size: 10px; font-weight: 600; color: var(--text-3); text-align: center; padding: 4px 0; }
-    .cal-day   { aspect-ratio: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; transition: all .12s; border: 1.5px solid transparent; }
-    .cal-day:hover:not(.cal-disabled):not(.cal-empty) { background: var(--sage-light); border-color: var(--sage-mid); }
-    .cal-day.cal-today     { font-weight: 600; color: var(--sage); }
-    .cal-day.cal-selected  { background: var(--sage); color: #fff; border-color: var(--sage); font-weight: 600; }
-    .cal-day.cal-disabled  { color: var(--sand-3); cursor: not-allowed; }
-    .cal-day.cal-weekend   { color: var(--sand-3); cursor: not-allowed; }
-    .cal-day.cal-empty     { cursor: default; }
-    .cal-day.cal-has-appt  { position: relative; }
-    .cal-day.cal-has-appt::after { content: ''; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--sage); }
-    .cal-day.cal-selected.cal-has-appt::after { background: rgba(255,255,255,.7); }
-
-    /* ── Upcoming appointments ── */
-    .appt-list { display: flex; flex-direction: column; gap: 12px; }
-    .appt-card {
-      display: flex; align-items: flex-start; gap: 14px;
-      padding: 16px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--white); transition: box-shadow .12s;
-    }
-    .appt-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
-    .appt-date-box { background: var(--sage-light); border-radius: 10px; padding: 10px 12px; text-align: center; flex-shrink: 0; min-width: 52px; }
-    .adb-month { font-size: 9px; font-weight: 600; color: var(--sage-dark); text-transform: uppercase; letter-spacing: .06em; }
-    .adb-day   { font-size: 24px; font-weight: 700; color: var(--sage-dark); line-height: 1; }
-    .adb-dow   { font-size: 9px; color: var(--sage); text-transform: uppercase; margin-top: 2px; }
-    .appt-info { flex: 1; min-width: 0; }
-    .appt-name { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
-    .appt-time { font-size: 12px; color: var(--text-3); margin-bottom: 6px; }
-    .appt-purpose { font-size: 12px; color: var(--text-2); font-style: italic; background: var(--sand); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; line-height: 1.5; }
-    .appt-notes   { font-size: 12px; color: var(--sage-dark); background: var(--sage-light); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; line-height: 1.5; }
-    .appt-actions { display: flex; gap: 8px; }
-    .appt-status  { align-self: flex-start; font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 20px; border: 1px solid; white-space: nowrap; flex-shrink: 0; }
-    .btn-cancel-appt { font-size: 11px; padding: 5px 12px; border-radius: 7px; border: 1px solid #F5C6C2; background: var(--white); color: var(--red); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background .12s; }
-    .btn-cancel-appt:hover { background: #FBEDED; }
-
-    /* Past appointments table */
-    .past-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .past-table th { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; background: var(--sand); }
-    .past-table td { padding: 12px; border-bottom: 1px solid var(--sand-2); vertical-align: middle; }
-    .past-table tr:last-child td { border-bottom: none; }
-    .past-table tr:hover td { background: var(--sand); }
-
-    /* ── Empty state ── */
-    .empty-state { text-align: center; padding: 40px 24px; }
-    .es-icon  { font-size: 40px; margin-bottom: 10px; }
-    .es-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
-    .es-sub   { font-size: 12px; color: var(--text-3); }
-
-    /* ── Info tip ── */
-    .info-tip { display: flex; gap: 10px; align-items: flex-start; background: var(--lav-light); border: 1px solid #CBC6F0; border-radius: 10px; padding: 12px 14px; font-size: 12px; color: var(--lav); line-height: 1.6; }
-    .info-tip-icon { font-size: 16px; flex-shrink: 0; }
-
-    /* Cancel confirm overlay */
-    .confirm-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,.4); backdrop-filter: blur(2px); align-items: center; justify-content: center; }
-    .confirm-overlay.show { display: flex; }
-    .confirm-box { background: var(--white); border-radius: 16px; padding: 28px; max-width: 380px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
-    .cb-icon  { font-size: 36px; margin-bottom: 10px; }
-    .cb-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 6px; }
-    .cb-body  { font-size: 13px; color: var(--text-3); margin-bottom: 20px; line-height: 1.6; }
-    .cb-detail { font-size: 13px; font-weight: 500; color: var(--text); background: var(--sand); border-radius: 8px; padding: 10px 12px; margin-bottom: 18px; }
-    .cb-btns  { display: flex; gap: 10px; }
-    .cb-keep  { flex: 1; padding: 11px; background: var(--sand); border: 1.5px solid var(--border); border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; }
-    .cb-confirm-cancel { flex: 1; padding: 11px; background: var(--red); color: #fff; border: none; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; transition: background .15s; }
-    .cb-confirm-cancel:hover { background: #B83030; }
-
-    /* ── Step indicator ── */
-    .steps-row       { display: flex; align-items: center; gap: 0; margin-bottom: 22px; }
-    .step-item       { display: flex; align-items: center; gap: 8px; flex: 1; }
-    .step-item:last-child { flex: none; }
-    .step-circle     { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); background: var(--white); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-3); flex-shrink: 0; transition: all .2s; }
-    .step-circle.done   { background: var(--sage); border-color: var(--sage); color: #fff; }
-    .step-circle.active { background: var(--white); border-color: var(--sage); color: var(--sage); }
-    .step-label      { font-size: 11px; color: var(--text-3); white-space: nowrap; transition: color .2s; }
-    .step-label.active { color: var(--sage); font-weight: 600; }
-    .step-label.done   { color: var(--sage-dark); }
-    .step-line       { flex: 1; height: 2px; background: var(--border); margin: 0 6px; transition: background .2s; }
-    .step-line.done  { background: var(--sage); }
-
-    /* ── Booking summary card ── */
-    .summary-panel {
-      display: none;
-      background: var(--sage-light); border: 1.5px solid var(--sage-mid);
-      border-radius: 12px; padding: 18px; margin-bottom: 16px;
-    }
-    .summary-panel.show { display: block; }
-    .summary-title  { font-size: 13px; font-weight: 600; color: var(--sage-dark); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-    .summary-row    { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; font-size: 13px; }
-    .summary-row:last-child { margin-bottom: 0; }
-    .summary-icon   { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
-    .summary-val    { color: var(--text); font-weight: 500; }
-    .summary-key    { color: var(--text-3); font-size: 11px; }
-
-    /* ── Form section headers ── */
-    .form-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 10px; margin-top: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-
-    @media (max-width: 1100px) { .page-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 900px)  { .layout { grid-template-columns: 1fr; }  }
-  
-/* ── Hamburger button ── */
-.hamburger{display:none;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:38px;height:38px;border-radius:9px;background:var(--sand,#F7F3EE);border:1px solid var(--border,#E8E4DE);cursor:pointer;padding:0;flex-shrink:0;}
-.hamburger span{display:block;width:18px;height:2px;background:var(--text-2,#5C5B57);border-radius:2px;transition:all .25s ease;}
-.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
-.hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0);}
-.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
-
-/* ── Sidebar overlay ── */
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:299;backdrop-filter:blur(2px);}
-.sidebar-overlay.active{display:block;}
-
-@media(max-width:900px){
-  .hamburger{display:flex;}
-  .layout{grid-template-columns:1fr;}
-  .sidebar{position:fixed;top:58px;left:0;bottom:0;z-index:300;transform:translateX(-100%);transition:transform .28s ease;height:calc(100vh - 58px);width:270px;box-shadow:4px 0 24px rgba(0,0,0,.12);overflow-y:auto;}
-  .sidebar.mobile-open{transform:translateX(0);}
-  .main{padding:20px 16px;}
-}
-
-</style>
-</head>
 <body>
 
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <!-- ── Topbar ── -->
-<header class="topbar">
-  <button class="hamburger" id="hamburgerBtn" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span><span></span></button>
-  <div class="topbar-brand">
-    <div class="topbar-mark">M</div>
-    <div>
-      <div class="topbar-name">CTU MindCare</div>
-      <div class="topbar-school">CTU Consolacion</div>
-    </div>
-  </div>
-  <div class="topbar-right">
-    <a class="user-chip" href="profile.php">
-      <div class="user-av"><?= strtoupper(substr($user['first_name'],0,1).substr($user['last_name'],0,1)) ?></div>
-      <span class="user-name"><?= clean($user['first_name'].' '.$user['last_name']) ?></span>
-    </a>
-    <a class="logout-btn" href="../../auth/logout.php">Sign out</a>
-  </div>
-</header>
+<?php require_once '../../includes/topbar.php'; ?>
 
 <div class="layout">
 
   <!-- ── Sidebar ── -->
-  <aside class="sidebar">
-    <div class="sb-section">
-      <span class="sb-label">My Wellness</span>
-      <a class="nav-item" href="dashboard.php"><div class="nav-icon">🏠</div> Dashboard</a>
-      <a class="nav-item" href="mood-checkin.php"><div class="nav-icon">😊</div> Daily check-in</a>
-      <a class="nav-item" href="assessment.php"><div class="nav-icon">📋</div> Assessments</a>
-      <a class="nav-item" href="csuq.php"><div class="nav-icon">💻</div> CSUQ survey</a>
-      <a class="nav-item" href="progress.php"><div class="nav-icon">📈</div> My progress</a>
-      <a class="nav-item" href="journal.php"><div class="nav-icon">📓</div> Wellness journal</a>
-    </div>
-    <div class="sb-divider"></div>
-    <div class="sb-section">
-      <span class="sb-label">Support</span>
-      <a class="nav-item active" href="appointments.php"><div class="nav-icon">📅</div> Book appointment</a>
-      <a class="nav-item" href="counselor-chat.php"><div class="nav-icon">💬</div> Counselor chat</a>
-      <a class="nav-item" href="resources.php"><div class="nav-icon">📚</div> Resource library</a>
-    </div>
-    <div class="sb-divider"></div>
-    <div class="sb-section">
-      <span class="sb-label">Community</span>
-      <a class="nav-item" href="forum.php"><div class="nav-icon">🗣️</div> Peer forum</a>
-      <a class="nav-item" href="peer-chat.php"><div class="nav-icon">💭</div> Peer chat</a>
-    </div>
-    <div class="sb-divider"></div>
-    <div class="sb-section">
-      <a class="nav-item crisis-nav" href="crisis.php"><div class="nav-icon">🆘</div> Crisis help</a>
-    </div>
-    <div class="sb-footer">
-      <div class="sb-user-card">
-        <div class="su-av"><?= strtoupper(substr($user['first_name'],0,1).substr($user['last_name'],0,1)) ?></div>
-        <div>
-          <div class="su-name"><?= clean($user['first_name'].' '.$user['last_name']) ?></div>
-          <div class="su-id"><?= clean($user['student_id'] ?? 'Student') ?></div>
-        </div>
-      </div>
-    </div>
-  </aside>
+  <?php require_once '../../includes/sidebar.php'; ?>
 
-  <!-- ── Main ── -->
+<!-- ── Main ── -->
   <main class="main">
 
     <?php if ($flash): ?>
-      <div class="flash flash-<?= $flash['type'] ?>">
-        <?= $flash['type'] === 'success' ? '✓' : '⚠' ?> <?= clean($flash['message']) ?>
+      <div class="flash flash-<?= $flash['type'] ?>" data-auto-dismiss>
+        <?php
+        $flash_icon = $flash['type'] === 'success' ? 'check-circle' : ($flash['type'] === 'warning' ? 'alert-triangle' : 'alert-circle');
+        ?>
+        <i data-lucide="<?= $flash_icon ?>"></i>
+        <?= clean($flash['message']) ?>
       </div>
     <?php endif; ?>
 
-    <div class="page-header">
+    <div class="page-header mc-reveal">
       <div class="page-title">Book an Appointment</div>
       <div class="page-sub">Schedule a one-on-one session with a wellness counselor. Sessions are confidential.</div>
     </div>
@@ -573,8 +218,8 @@ function statusIcon(string $s): string {
       <div style="display:flex;flex-direction:column;gap:20px">
 
         <!-- Upcoming -->
-        <div class="card">
-          <div class="card-title">Upcoming appointments</div>
+        <div class="card mc-reveal" data-mc-delay="1">
+          <div class="card-title"><i data-lucide="calendar"></i> Upcoming appointments</div>
           <div class="card-sub"><?= count($upcoming) ?> scheduled</div>
 
           <?php if (!empty($upcoming)): ?>
@@ -591,17 +236,19 @@ function statusIcon(string $s): string {
                   </div>
                   <div class="appt-info">
                     <div class="appt-name">
-                      <?= statusIcon($a['status']) ?> <?= clean($a['c_first'] . ' ' . $a['c_last']) ?>
+                      <i data-lucide="<?= statusIcon($a['status']) ?>" style="width:14px;height:14px;color:var(--text-3)"></i>
+                      <?= clean($a['c_first'] . ' ' . $a['c_last']) ?>
                     </div>
                     <div class="appt-time">
-                      🕐 <?= date('g:i A', strtotime($a['appointment_time'])) ?>
+                      <i data-lucide="clock" style="width:12px;height:12px"></i>
+                      <?= date('g:i A', strtotime($a['appointment_time'])) ?>
                       &nbsp;·&nbsp; <?= date('l, F j, Y', strtotime($a['appointment_date'])) ?>
                     </div>
                     <?php if ($a['purpose']): ?>
                       <div class="appt-purpose">"<?= clean($a['purpose']) ?>"</div>
                     <?php endif; ?>
                     <?php if ($a['counselor_notes'] && $a['status'] === 'confirmed'): ?>
-                      <div class="appt-notes">📝 Counselor note: <?= clean($a['counselor_notes']) ?></div>
+                      <div class="appt-notes"><i data-lucide="sticky-note" style="width:12px;height:12px"></i> Counselor note: <?= clean($a['counselor_notes']) ?></div>
                     <?php endif; ?>
                     <?php if ($is_cancellable): ?>
                       <div class="appt-actions">
@@ -612,9 +259,10 @@ function statusIcon(string $s): string {
                       </div>
                     <?php endif; ?>
                   </div>
-                  <div class="appt-status" style="background:<?= $badge['bg'] ?>;color:<?= $badge['color'] ?>;border-color:<?= $badge['border'] ?>">
+                  <span class="appt-status <?= $badge['cls'] ?>">
+                    <i data-lucide="<?= statusIcon($a['status']) ?>" style="width:11px;height:11px"></i>
                     <?= $badge['label'] ?>
-                  </div>
+                  </span>
                 </div>
               <?php endforeach; ?>
             </div>
@@ -629,8 +277,8 @@ function statusIcon(string $s): string {
 
         <!-- Past / history -->
         <?php if (!empty($past)): ?>
-        <div class="card">
-          <div class="card-title">Appointment history</div>
+        <div class="card mc-reveal" data-mc-delay="2">
+          <div class="card-title"><i data-lucide="history"></i> Appointment history</div>
           <div class="card-sub"><?= count($past) ?> past session<?= count($past) !== 1 ? 's' : '' ?></div>
           <div style="overflow-x:auto">
             <table class="past-table">
@@ -656,8 +304,8 @@ function statusIcon(string $s): string {
                       <?= $a['purpose'] ? clean(mb_substr($a['purpose'], 0, 80)) . (mb_strlen($a['purpose']) > 80 ? '…' : '') : '—' ?>
                     </td>
                     <td>
-                      <span style="font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;border:1px solid;background:<?= $badge['bg'] ?>;color:<?= $badge['color'] ?>;border-color:<?= $badge['border'] ?>">
-                        <?= statusIcon($a['status']) ?> <?= $badge['label'] ?>
+                      <span class="badge <?= $badge['cls'] ?>">
+                        <i data-lucide="<?= statusIcon($a['status']) ?>"></i> <?= $badge['label'] ?>
                       </span>
                     </td>
                   </tr>
@@ -669,7 +317,7 @@ function statusIcon(string $s): string {
         <?php endif; ?>
 
         <!-- Info tip -->
-        <div class="info-tip">
+        <div class="info-tip mc-reveal" data-mc-delay="3">
           <div class="info-tip-icon">💜</div>
           <div>
             <strong>All sessions are confidential.</strong> Your counselor will not share session details with anyone outside the wellness team without your consent, except in cases where safety is a concern.
@@ -679,13 +327,13 @@ function statusIcon(string $s): string {
       </div>
 
       <!-- ══ RIGHT: booking form ══════════════════════════════════ -->
-      <div>
-        <div class="card">
-          <div class="card-title">Schedule a session</div>
+      <div class="mc-reveal" data-mc-delay="1">
+        <div class="card" style="position:sticky;top:76px">
+          <div class="card-title"><i data-lucide="calendar-plus"></i> Schedule a session</div>
           <div class="card-sub">Available Monday – Friday, 9:00 AM – 5:00 PM</div>
 
           <?php if ($error): ?>
-            <div class="error-box">⚠ <?= clean($error) ?></div>
+            <div class="alert alert-error" data-auto-dismiss><i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i> <?= clean($error) ?></div>
           <?php endif; ?>
 
           <?php if (empty($counselors)): ?>
@@ -714,7 +362,7 @@ function statusIcon(string $s): string {
             </div>
           </div>
 
-          <form method="POST" action="appointments.php" id="bookForm">
+          <form method="POST" action="appointments.php" id="bookForm" data-validate>
             <!-- hidden fields carried across steps -->
             <input type="hidden" name="counselor_id"       id="hidCounselorId">
             <input type="hidden" name="appointment_date"   id="hidDate">
@@ -729,7 +377,7 @@ function statusIcon(string $s): string {
                   $initials = strtoupper(substr($c['first_name'],0,1).substr($c['last_name'],0,1));
                   $preselected = (isset($_POST['counselor_id']) && (int)$_POST['counselor_id'] === (int)$c['id']);
                 ?>
-                  <div class="counselor-card <?= $preselected ? 'selected' : '' ?>"
+                  <div class="counselor-card compact <?= $preselected ? 'selected' : '' ?>"
                        data-id="<?= $c['id'] ?>"
                        data-name="<?= clean($c['first_name'].' '.$c['last_name']) ?>"
                        onclick="selectCounselor(this)">
@@ -738,12 +386,12 @@ function statusIcon(string $s): string {
                       <div class="counselor-name"><?= clean($c['first_name'].' '.$c['last_name']) ?></div>
                       <div class="counselor-role">Wellness Counselor</div>
                     </div>
-                    <div class="counselor-check" id="chk_<?= $c['id'] ?>">✓</div>
+                    <div class="counselor-check" id="chk_<?= $c['id'] ?>"><i data-lucide="check" style="width:11px;height:11px"></i></div>
                   </div>
                 <?php endforeach; ?>
               </div>
               <button type="button" class="btn-next" id="btnNext1" onclick="goStep(2)" disabled>
-                Next: Pick a date &amp; time →
+                Next: Pick a date &amp; time <i data-lucide="arrow-right" style="width:15px;height:15px"></i>
               </button>
             </div>
 
@@ -779,9 +427,9 @@ function statusIcon(string $s): string {
               <div class="form-hint" style="margin-top:6px">Greyed-out slots are already taken for this counselor &amp; date.</div>
 
               <div style="display:flex;gap:10px;margin-top:18px">
-                <button type="button" class="btn-back-step" onclick="goStep(1)">← Back</button>
+                <button type="button" class="btn-back-step" onclick="goStep(1)"><i data-lucide="arrow-left" style="width:14px;height:14px"></i> Back</button>
                 <button type="button" class="btn-next" id="btnNext2" onclick="goStep(3)" disabled style="flex:1">
-                  Next: Review →
+                  Next: Review <i data-lucide="arrow-right" style="width:15px;height:15px"></i>
                 </button>
               </div>
             </div>
@@ -791,17 +439,17 @@ function statusIcon(string $s): string {
 
               <!-- Full summary -->
               <div class="summary-panel show" id="summaryPanel">
-                <div class="summary-title">📋 Appointment summary</div>
+                <div class="summary-title"><i data-lucide="clipboard-check" style="width:15px;height:15px"></i> Appointment summary</div>
                 <div class="summary-row">
-                  <span class="summary-icon">👤</span>
+                  <span class="summary-icon"><i data-lucide="user"></i></span>
                   <div><div class="summary-key">Counselor</div><div class="summary-val" id="sum-counselor">—</div></div>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-icon">📅</span>
+                  <span class="summary-icon"><i data-lucide="calendar"></i></span>
                   <div><div class="summary-key">Date</div><div class="summary-val" id="sum-date">—</div></div>
                 </div>
                 <div class="summary-row">
-                  <span class="summary-icon">🕐</span>
+                  <span class="summary-icon"><i data-lucide="clock"></i></span>
                   <div><div class="summary-key">Time</div><div class="summary-val" id="sum-time">—</div></div>
                 </div>
               </div>
@@ -809,7 +457,7 @@ function statusIcon(string $s): string {
               <div class="form-group" style="margin-top:16px">
                 <label class="form-label" for="purposeInput">
                   Reason for visit
-                  <span style="font-weight:400;color:var(--text-3)">(optional)</span>
+                  <span class="form-label-opt">(optional)</span>
                 </label>
                 <textarea
                   class="form-textarea"
@@ -826,9 +474,9 @@ function statusIcon(string $s): string {
               </div>
 
               <div style="display:flex;gap:10px">
-                <button type="button" class="btn-back-step" onclick="goStep(2)">← Back</button>
+                <button type="button" class="btn-back-step" onclick="goStep(2)"><i data-lucide="arrow-left" style="width:14px;height:14px"></i> Back</button>
                 <button type="submit" class="btn-book" id="bookBtn" style="flex:1" onclick="prepareSubmit()">
-                  📅 &nbsp;Confirm &amp; book appointment
+                  <i data-lucide="calendar-check" style="width:15px;height:15px"></i> &nbsp;Confirm &amp; book appointment
                 </button>
               </div>
             </div>
@@ -901,7 +549,7 @@ function goStep(n) {
   if (n === 2) {
     // Show recap of chosen counselor
     const recap = document.getElementById('recapCounselor');
-    if (recap) recap.innerHTML = `<span style="font-size:16px">👤</span> <span>Seeing <strong>${selCounselorName}</strong></span>`;
+    if (recap) recap.innerHTML = `<i data-lucide="user" style="width:15px;height:15px;flex-shrink:0"></i> <span>Seeing <strong>${selCounselorName}</strong></span>`;
     renderCalendar();
     updateSlots();
   }
@@ -1091,19 +739,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<script>
-(function(){
-  var btn = document.getElementById('hamburgerBtn');
-  var sb  = document.querySelector('.sidebar');
-  var ov  = document.getElementById('sidebarOverlay');
-  if(!btn||!sb||!ov) return;
-  function open(){sb.classList.add('mobile-open');ov.classList.add('active');btn.classList.add('open');btn.setAttribute('aria-expanded','true');document.body.style.overflow='hidden';}
-  function close(){sb.classList.remove('mobile-open');ov.classList.remove('active');btn.classList.remove('open');btn.setAttribute('aria-expanded','false');document.body.style.overflow='';}
-  btn.addEventListener('click',function(){sb.classList.contains('mobile-open')?close():open();});
-  ov.addEventListener('click',close);
-  sb.querySelectorAll('.nav-item').forEach(function(l){l.addEventListener('click',function(){if(window.innerWidth<=900)close();});});
-  window.addEventListener('resize',function(){if(window.innerWidth>900)close();});
-})();
-</script>
+<?php require_once '../../includes/chatbot_widget.php'; ?>
 </body>
 </html>

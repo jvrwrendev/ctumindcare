@@ -90,112 +90,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+$mc_title = 'CSUQ Questionnaire';
+require_once '../../includes/assets.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CSUQ Questionnaire — CTU MindCare</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--sage:#4A9B7F;--sage-light:#EAF7F2;--sage-mid:#C4E8DC;--sage-dark:#2D6B57;--sand:#F7F3EE;--border:#E8E4DE;--text:#2C2C2A;--text-2:#5C5B57;--text-3:#9A9891;--white:#fff;}
-body{font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--text);min-height:100vh;}
-.page-shell{max-width:1100px;margin:0 auto;padding:26px 22px;}
-.layout{display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:start;}
-.sidebar{background:var(--white);border:1px solid var(--border);border-radius:20px;padding:24px;min-height:calc(100vh - 52px);}
-.sidebar .sb-section{margin-bottom:22px;}
-.sb-label{display:block;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:14px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;font-size:13px;color:var(--text-2);text-decoration:none;transition:all .14s;}
-.nav-item:hover{background:var(--sand);color:var(--text);}
-.nav-item.active{background:var(--sage-light);color:var(--sage-dark);font-weight:600;}
-.nav-icon{width:28px;height:28px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--sand);font-size:14px;}
-.nav-item.active .nav-icon{background:var(--sage-mid);}
-.sb-divider{height:1px;background:var(--border);margin:18px 0;}
-.main{display:flex;flex-direction:column;gap:24px;}
-.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-bottom:24px;padding:18px 22px;background:var(--white);border:1px solid var(--border);border-radius:18px;box-shadow:0 10px 24px rgba(0,0,0,.05);}
-.topbar h1{font-family:'DM Serif Display',serif;font-size:26px;line-height:1.1;color:var(--sage-dark);}
-.topbar p{font-size:13px;color:var(--text-2);max-width:580px;}
-.user-chip{display:flex;align-items:center;gap:10px;background:var(--sage-light);border:1px solid var(--sage-mid);border-radius:999px;padding:10px 16px;font-size:12px;color:var(--sage-dark);}
-.user-chip span{font-weight:600;}
-.card{background:var(--white);border:1px solid var(--border);border-radius:20px;padding:24px;box-shadow:0 10px 24px rgba(0,0,0,.04);}
-.card + .card{margin-top:20px;}
-.scale-legend{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 26px;}
-.scale-pill{background:var(--sage-light);border:1px solid var(--sage-mid);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--sage-dark);text-align:center;}
-.fieldset{border:1px solid var(--border);border-radius:16px;padding:18px;}
-.fieldset legend{font-weight:700;color:var(--sage-dark);padding:0 6px;}
-.question-row{display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:20px;}
-.question-box{display:grid;gap:12px;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--sand);}
-.question-label{font-size:14px;color:var(--text);line-height:1.5;}
-.options{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
-.option{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--text-2);}
-.option input{accent-color:var(--sage);}
-textarea.form-input{width:100%;min-height:120px;padding:14px;border:1.5px solid var(--border);border-radius:14px;background:var(--white);font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);resize:vertical;}
-.btn-primary{display:inline-flex;align-items:center;justify-content:center;padding:14px 22px;border:none;border-radius:14px;background:var(--sage);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;}
-.btn-primary:hover{background:#5BAF91;}
-.alert{border-radius:14px;padding:16px 18px;font-size:14px;line-height:1.5;margin-bottom:20px;}
-.alert-error{background:#FBEDED;border:1px solid #F5C6C2;color:#8B2020;}
-.alert-success{background:var(--sage-light);border:1px solid var(--sage-mid);color:var(--sage-dark);}
-@media(max-width:900px){.scale-legend{grid-template-columns:1fr 1fr;}.options{grid-template-columns:repeat(4,minmax(0,1fr));}.question-row{gap:18px;}}
-@media(max-width:620px){.options{grid-template-columns:repeat(2,minmax(0,1fr));}}
-</style>
-</head>
 <body>
-<div class="page-shell">
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="sb-section">
-        <span class="sb-label">My Wellness</span>
-        <a class="nav-item" href="dashboard.php"><div class="nav-icon">🏠</div> Dashboard</a>
-        <a class="nav-item" href="mood-checkin.php"><div class="nav-icon">😊</div> Daily check-in</a>
-        <a class="nav-item" href="assessment.php"><div class="nav-icon">📋</div> Assessments</a>
-        <a class="nav-item active" href="csuq.php"><div class="nav-icon">💻</div> CSUQ survey</a>
-        <a class="nav-item" href="progress.php"><div class="nav-icon">📈</div> My progress</a>
-        <a class="nav-item" href="journal.php"><div class="nav-icon">📓</div> Wellness journal</a>
-      </div>
-      <div class="sb-divider"></div>
-      <div class="sb-section">
-        <span class="sb-label">Support</span>
-        <a class="nav-item" href="appointments.php"><div class="nav-icon">📅</div> Book appointment</a>
-        <a class="nav-item" href="counselor-chat.php"><div class="nav-icon">💬</div> Counselor chat</a>
-        <a class="nav-item" href="resources.php"><div class="nav-icon">📚</div> Resource library</a>
-      </div>
-      <div class="sb-divider"></div>
-      <div class="sb-section">
-        <span class="sb-label">Community</span>
-        <a class="nav-item" href="forum.php"><div class="nav-icon">🗣️</div> Peer forum</a>
-        <a class="nav-item" href="peer-chat.php"><div class="nav-icon">💭</div> Peer chat</a>
-      </div>
-      <div class="sb-divider"></div>
-      <a class="nav-item crisis-nav" href="crisis.php"><div class="nav-icon">🆘</div> Crisis help</a>
-    </aside>
-    <main class="main">
-      <div class="topbar">
+
+<header class="topbar">
+  <button class="mc-hamburger" id="mcHamburger" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span><span></span></button>
+  <div class="topbar-brand">
+    <div class="topbar-mark">M</div>
+    <div>
+      <div class="topbar-name">CTU MindCare</div>
+      <div class="topbar-school">CTU Consolacion</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button type="button" class="mc-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <i data-lucide="moon" class="icon-moon"></i>
+      <i data-lucide="sun" class="icon-sun"></i>
+    </button>
+    <a class="user-chip" href="profile.php" title="Edit profile">
+      <div class="user-av"><?= strtoupper(substr($user['first_name'] ?? '',0,1).substr($user['last_name'] ?? '',0,1)) ?></div>
+      <span class="user-name"><?= clean(($user['first_name'] ?? '').' '.($user['last_name'] ?? '')) ?></span>
+    </a>
+    <a class="logout-btn" href="../../auth/logout.php" title="Sign out"><i data-lucide="log-out"></i></a>
+  </div>
+</header>
+
+<div class="layout">
+  <?php require_once '../../includes/sidebar.php'; ?>
+  <main class="main">
+    <div class="csuq-shell">
+      <div class="csuq-header mc-reveal">
         <div>
           <h1>Computer System Usability Questionnaire</h1>
           <p>This CSUQ form helps the MIS office understand how students experience the web system and improves trust, usability, and secure access.</p>
         </div>
-        <div class="user-chip">
+        <div class="csuq-user">
           <span><?= clean($user['first_name'] ?? 'Student') ?></span>
           <span>•</span>
           <span><?= clean($user['student_id'] ?? 'N/A') ?></span>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card mc-reveal" data-mc-delay="1">
     <?php if ($error): ?>
-      <div class="alert alert-error"><?= clean($error) ?></div>
+      <div class="alert alert-error" data-auto-dismiss><i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i> <?= clean($error) ?></div>
     <?php endif; ?>
 
     <?php if ($success): ?>
       <div class="alert alert-success">
-        <strong>Thank you!</strong> Your CSUQ feedback has been recorded securely. The MIS office will review it as part of our system quality checks.
+        <i data-lucide="check-circle" style="width:15px;height:15px;flex-shrink:0"></i>
+        <span><strong>Thank you!</strong> Your CSUQ feedback has been recorded securely. The MIS office will review it as part of our system quality checks.</span>
       </div>
       <p style="margin-bottom:18px;color:var(--text-2);">Your responses are stored in an encrypted database field and linked only to your CTU student account.</p>
-      <a class="btn-primary" href="dashboard.php">Back to dashboard</a>
+      <a class="btn-primary" href="dashboard.php"><i data-lucide="arrow-left" style="width:15px;height:15px"></i> Back to dashboard</a>
     <?php else: ?>
-      <form method="POST" action="" novalidate>
+      <form method="POST" action="" novalidate data-validate>
         <input type="hidden" name="_csrf_token" value="<?= $csrf_token ?>">
 
         <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;">Select the response that best matches your agreement with each statement. The scale ranges from 1 (Strongly Disagree) to 7 (Strongly Agree).</p>
@@ -232,14 +183,15 @@ textarea.form-input{width:100%;min-height:120px;padding:14px;border:1.5px solid 
         </div>
 
         <div style="margin-top:24px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-          <button class="btn-primary" type="submit">Submit CSUQ feedback</button>
+          <button class="btn-primary" type="submit"><i data-lucide="send" style="width:15px;height:15px"></i> Submit CSUQ feedback</button>
           <span style="font-size:13px;color:var(--text-3);">Responses are stored securely and used only by the MIS office and wellness team.</span>
         </div>
       </form>
     <?php endif; ?>
   </div>
-    </main>
+    </div>
+  </main>
   </div>
-</div>
+<?php require_once '../../includes/chatbot_widget.php'; ?>
 </body>
 </html>

@@ -322,6 +322,9 @@ $stmt = $db->prepare("
 $stmt->execute([$user['id'], $user['id']]);
 $unread_msgs = (int)$stmt->fetch()['cnt'];
 
+// Open AI risk flags (for sidebar badge)
+$open_ai_flags = (int)$db->query("SELECT COUNT(*) FROM chatbot_risk_flags WHERE status = 'open'")->fetchColumn();
+
 // Cohort mood trend — last 7 days
 $stmt = $db->prepare("
     SELECT DATE(me.recorded_at) as day, ROUND(AVG(me.mood_level), 2) as avg_mood
@@ -609,36 +612,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--text);m
 .user-name{font-size:12px;font-weight:500;color:var(--sage-dark)}
 .logout-btn{font-size:12px;color:var(--text-3);text-decoration:none;padding:6px 12px;border-radius:7px;border:1px solid var(--border)}
 .logout-btn:hover{color:var(--coral);border-color:var(--coral)}
-.hamburger{display:none;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:38px;height:38px;border-radius:9px;background:var(--sand);border:1px solid var(--border);cursor:pointer;padding:0;flex-shrink:0}
-.hamburger span{display:block;width:18px;height:2px;background:var(--text-2);border-radius:2px;transition:all .25s}
-.hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
-.hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0)}
-.hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
-.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:299;backdrop-filter:blur(2px)}
-.sidebar-overlay.active{display:block}
 
 /* ── Layout ── */
-.layout{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 58px)}
-
-/* ── Sidebar ── */
-.sidebar{background:var(--white);border-right:1px solid var(--border);padding:18px 0;position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto;display:flex;flex-direction:column}
-.sb-section{padding:0 12px;margin-bottom:4px}
-.sb-label{font-size:9px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;padding:0 8px;margin-bottom:4px;display:block}
-.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;font-size:13px;color:var(--text-2);cursor:pointer;text-decoration:none;margin-bottom:1px;transition:all .12s}
-.nav-item:hover{background:var(--sand);color:var(--text)}
-.nav-item.active{background:var(--sage-light);color:var(--sage-dark);font-weight:500}
-.nav-icon{width:26px;height:26px;border-radius:7px;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
-.nav-item.active .nav-icon{background:var(--sage-mid)}
-.nav-item.crisis-nav{color:var(--coral)}
-.nav-item.crisis-nav:hover{background:var(--coral-light)}
-.nav-item.crisis-nav .nav-icon{background:var(--coral-light)}
-.nav-badge{margin-left:auto;font-size:9px;font-weight:600;padding:2px 6px;border-radius:8px;background:var(--coral);color:#fff}
-.sb-div{height:1px;background:var(--border);margin:8px 12px}
-.sb-footer{margin-top:auto;padding:12px}
-.sb-user-card{background:var(--sand);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px}
-.suf-av{width:34px;height:34px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
-.suf-name{font-size:12px;font-weight:500;color:var(--text)}
-.suf-role{font-size:10px;color:var(--text-3)}
+.layout{display:grid;grid-template-columns:var(--mc-sidebar-w,240px) 1fr;min-height:calc(100vh - 58px)}
 
 /* ── Main ── */
 .main{padding:26px 30px;overflow-y:auto}
@@ -828,113 +804,41 @@ body{font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--text);m
 
 /* ── Responsive ── */
 @media(max-width:1100px){.stat-grid{grid-template-columns:1fr 1fr}.main-grid{grid-template-columns:1fr}.chat-layout{grid-template-columns:1fr}}
-@media(max-width:900px){.hamburger{display:flex}.layout{grid-template-columns:1fr}.sidebar{position:fixed;top:58px;left:0;bottom:0;z-index:300;transform:translateX(-100%);transition:transform .28s ease;height:calc(100vh - 58px);width:260px;box-shadow:4px 0 24px rgba(0,0,0,.12)}.sidebar.mobile-open{transform:translateX(0)}.main{padding:18px 16px}}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.main{padding:18px 16px}}
 @media(max-width:640px){.stat-grid{grid-template-columns:1fr 1fr}.page-header{flex-direction:column}.chat-layout{grid-template-columns:1fr;height:auto}}
 </style>
 </head>
 <body>
 
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- ── Topbar ── -->
-<header class="topbar">
-  <button class="hamburger" id="hamburgerBtn" aria-label="Toggle navigation" aria-expanded="false">
-    <span></span><span></span><span></span>
-  </button>
-  <div class="topbar-mark">M</div>
-  <div>
-    <div class="topbar-name">CTU MindCare</div>
-    <div class="topbar-school">CTU Consolacion</div>
-  </div>
-  <span class="topbar-badge">Wellness Counselor</span>
-  <div class="topbar-right">
-    <?php if ($unread_msgs > 0): ?>
-      <a class="notif-btn" href="dashboard.php?p=messages" title="<?= $unread_msgs ?> unread messages">
-        💬 <span class="notif-badge"><?= $unread_msgs ?></span>
-      </a>
-    <?php endif; ?>
-    <?php if ($open_alerts_count > 0): ?>
-      <a class="notif-btn" href="dashboard.php?p=alerts" title="<?= $open_alerts_count ?> open alerts">
-        🚨 <span class="notif-badge"><?= $open_alerts_count ?></span>
-      </a>
-    <?php endif; ?>
-    <div class="user-chip">
-      <div class="user-av"><?= strtoupper(substr($user['first_name'],0,1).substr($user['last_name'],0,1)) ?></div>
-      <span class="user-name"><?= clean($user['first_name'].' '.$user['last_name']) ?></span>
-    </div>
-    <a class="logout-btn" href="../../auth/logout.php">Sign out</a>
-  </div>
-</header>
+<?php
+$mc_topbar_badge = 'Wellness Counselor';
+$mc_topbar_bells = [
+    ['url' => 'messages.php', 'title' => $unread_msgs . ' unread message' . ($unread_msgs > 1 ? 's' : ''), 'icon' => '💬', 'count' => $unread_msgs],
+    ['url' => 'dashboard.php?p=alerts', 'title' => $open_alerts_count . ' open alert' . ($open_alerts_count > 1 ? 's' : ''), 'icon' => '🚨', 'count' => $open_alerts_count],
+];
+require_once '../../includes/topbar.php';
+?>
 
 <div class="layout">
 
   <!-- ── Sidebar ── -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sb-section">
-      <span class="sb-label">Workspace</span>
-      <a class="nav-item <?= $page==='dashboard'?'active':'' ?>" href="dashboard.php?p=dashboard">
-        <div class="nav-icon">🏠</div> Dashboard
-      </a>
-      <a class="nav-item <?= $page==='students'?'active':'' ?>" href="dashboard.php?p=students">
-        <div class="nav-icon">👥</div> My students
-      </a>
-      <a class="nav-item <?= $page==='appointments'?'active':'' ?>" href="dashboard.php?p=appointments">
-        <div class="nav-icon">📅</div> Appointments
-      </a>
-  <a class="nav-item <?= $page==='messages'?'active':'' ?>" href="messages.php">
-  <div class="nav-icon">💬</div> Messages
-  <?php if ($unread_msgs > 0): ?>
-    <span class="nav-badge"><?= $unread_msgs ?></span>
-  <?php endif; ?>
-</a>
-    </div>
-    <div class="sb-div"></div>
-    <div class="sb-section">
-      <span class="sb-label">Clinical</span>
-      <a class="nav-item <?= $page==='alerts'?'active':'' ?>" href="dashboard.php?p=alerts">
-        <div class="nav-icon">⚠️</div> Crisis alerts
-        <?php if ($open_alerts_count > 0): ?><span class="nav-badge"><?= $open_alerts_count ?></span><?php endif; ?>
-      </a>
-      <a class="nav-item <?= $page==='notes'?'active':'' ?>" href="dashboard.php?p=notes">
-        <div class="nav-icon">📋</div> Session notes
-      </a>
-      <a class="nav-item <?= $page==='assessments'?'active':'' ?>" href="dashboard.php?p=assessments">
-        <div class="nav-icon">📊</div> Assessments
-      </a>
-      <a class="nav-item <?= $page==='progress'?'active':'' ?>" href="dashboard.php?p=progress">
-        <div class="nav-icon">📈</div> Student progress
-      </a>
-    </div>
-    <div class="sb-div"></div>
-    <div class="sb-section">
-      <span class="sb-label">Community</span>
-      <a class="nav-item <?= $page==='forum'?'active':'' ?>" href="dashboard.php?p=forum">
-        <div class="nav-icon">🗣️</div> Forum moderation
-        <?php if (count($flagged_posts) > 0): ?><span class="nav-badge"><?= count($flagged_posts) ?></span><?php endif; ?>
-      </a>
-      <a class="nav-item <?= $page==='resources'?'active':'' ?>" href="dashboard.php?p=resources">
-        <div class="nav-icon">📚</div> Resource library
-      </a>
-      <a class="nav-item <?= $page==='announcements'?'active':'' ?>" href="dashboard.php?p=announcements">
-        <div class="nav-icon">📢</div> Announcements
-      </a>
-    </div>
-    <div class="sb-div"></div>
-    <div class="sb-section">
-      <a class="nav-item crisis-nav <?= $page==='crisis'?'active':'' ?>" href="dashboard.php?p=crisis">
-        <div class="nav-icon">🆘</div> Crisis protocols
-      </a>
-    </div>
-    <div class="sb-footer">
-      <div class="sb-user-card">
-        <div class="suf-av"><?= strtoupper(substr($user['first_name'],0,1).substr($user['last_name'],0,1)) ?></div>
-        <div>
-          <div class="suf-name"><?= clean($user['first_name'].' '.$user['last_name']) ?></div>
-          <div class="suf-role">Wellness Counselor</div>
-        </div>
-      </div>
-    </div>
-  </aside>
+  <?php
+  $mc_active_map = [
+      'dashboard' => 'dashboard', 'students' => 'students', 'appointments' => 'appointments',
+      'messages'  => 'messages',  'ai-logs'   => 'ai-logs',    'alerts'        => 'alerts',
+      'notes'     => 'notes',     'assessments' => 'assessments', 'progress'    => 'progress',
+      'forum'     => 'forum',     'resources' => 'resources',  'announcements' => 'announcements',
+      'crisis'    => 'crisis',
+  ];
+  $active_page   = $mc_active_map[$page] ?? 'dashboard';
+  $sidebar_badges = [
+      'messages' => $unread_msgs,
+      'ai-logs'  => $open_ai_flags,
+      'alerts'   => $open_alerts_count,
+      'forum'    => count($flagged_posts),
+  ];
+  require_once '../../includes/sidebar.php';
+  ?>
 
   <!-- ── Main Content ── -->
   <main class="main">
@@ -2083,21 +1987,6 @@ function switchTab(el, targetId) {
 }
 </script>
 
-<!-- Mobile hamburger -->
-<script>
-(function () {
-  const btn = document.getElementById('hamburgerBtn');
-  const sb  = document.getElementById('sidebar');
-  const ov  = document.getElementById('sidebarOverlay');
-  if (!btn || !sb || !ov) return;
-  function open()  { sb.classList.add('mobile-open');    ov.classList.add('active');    btn.classList.add('open');    btn.setAttribute('aria-expanded','true');  document.body.style.overflow='hidden'; }
-  function close() { sb.classList.remove('mobile-open'); ov.classList.remove('active'); btn.classList.remove('open'); btn.setAttribute('aria-expanded','false'); document.body.style.overflow=''; }
-  btn.addEventListener('click', () => sb.classList.contains('mobile-open') ? close() : open());
-  ov.addEventListener('click', close);
-  sb.querySelectorAll('.nav-item').forEach(l => l.addEventListener('click', () => { if (window.innerWidth <= 900) close(); }));
-  window.addEventListener('resize', () => { if (window.innerWidth > 900) close(); });
-})();
-</script>
-
+<?php require_once '../../includes/chatbot_widget.php'; ?>
 </body>
 </html>

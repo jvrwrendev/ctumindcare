@@ -1,0 +1,168 @@
+﻿/*!
+*  Flaticon UIcons 2.6.0 - interface icons
+*  Downloaded from https://www.flaticon.com/uicons/interface-icons
+*  Used under the Flaticon Free license (requires attribution).
+*  Icons by Flaticon: https://www.flaticon.com
+*/
+@font-face {
+    font-family: "uicons-regular-rounded";
+    src: url("https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/webfonts/uicons-regular-rounded.woff2") format("woff2"),
+    url("https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/webfonts/uicons-regular-rounded.woff") format("woff"),
+    url("https://cdn-uicons.flaticon.com/2.6.0/uicons-regular-rounded/webfonts/uicons-regular-rounded.eot#iefix") format("embedded-opentype");
+    font-display: swap;
+}
+
+i[class^="fi-rr-"]:before, i[class*=" fi-rr-"]:before, span[class^="fi-rr-"]:before, span[class*="fi-rr-"]:before {
+font-family: uicons-regular-rounded !important;
+font-style: normal;
+font-weight: normal !important;
+font-variant: normal;
+text-transform: none;
+line-height: 1;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
+.fi-rr-dashboard:before {
+    content: "\e503";
+    }
+
+.fi-rr-users:before {
+    content: "\f0df";
+    }
+
+.fi-rr-users-alt:before {
+    content: "\f0e0";
+    }
+
+.fi-rr-user:before {
+    content: "\f0a7";
+    }
+
+.fi-rr-chart-line-up:before {
+    content: "\e33f";
+    }
+
+.fi-rr-chart-histogram:before {
+    content: "\e33d";
+    }
+
+.fi-rr-megaphone:before {
+    content: "\ea23";
+    }
+
+.fi-rr-bullhorn:before {
+    content: "\e282";
+    }
+
+.fi-rr-document:before {
+    content: "\e57f";
+    }
+
+.fi-rr-note:before {
+    content: "\eafa";
+    }
+
+.fi-rr-siren-on:before {
+    content: "\ee03";
+    }
+
+.fi-rr-exclamation:before {
+    content: "\e61e";
+    }
+
+.fi-rr-smile:before {
+    content: "\ee34";
+    }
+
+.fi-rr-clipboard:before {
+    content: "\e3e1";
+    }
+
+.fi-rr-survey-xmark:before {
+    content: "\ef2f";
+    }
+
+.fi-rr-list-check:before {
+    content: "\e9b2";
+    }
+
+.fi-rr-book:before {
+    content: "\e1d8";
+    }
+
+.fi-rr-book-alt:before {
+    content: "\e1d9";
+    }
+
+.fi-rr-bookmark:before {
+    content: "\e1f1";
+    }
+
+.fi-rr-calendar:before {
+    content: "\e2a1";
+    }
+
+.fi-rr-comments:before {
+    content: "\e477";
+    }
+
+.fi-rr-messages:before {
+    content: "\ea48";
+    }
+
+.fi-rr-chat-arrow-down:before {
+    content: "\e355";
+    }
+
+.fi-rr-robot:before {
+    content: "\ed1d";
+    }
+
+.fi-rr-shield:before {
+    content: "\edae";
+    }
+
+.fi-rr-heart:before {
+    content: "\e83c";
+    }
+
+.fi-rr-life-ring:before {
+    content: "\e989";
+    }
+
+.fi-rr-bell:before {
+    content: "\e187";
+    }
+
+.fi-rr-stethoscope:before {
+    content: "\eef1";
+    }
+
+.fi-rr-flag:before {
+    content: "\e6ef";
+    }
+
+.fi-rr-sign-out-alt:before {
+    content: "\ede9";
+    }
+
+.fi-rr-edit:before {
+    content: "\e5df";
+    }
+
+.fi-rr-settings:before {
+    content: "\eda3";
+    }
+
+.fi-rr-info:before {
+    content: "\e8ce";
+    }
+
+.fi-rr-phone-call:before {
+    content: "\ebde";
+    }
+
+.fi-rr-arrow-right:before {
+    content: "\e0cc";
+    }
