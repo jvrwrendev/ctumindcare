@@ -77,12 +77,13 @@ if (isset($_GET['poll_messages'])) {
         SELECT cm.id, cm.sender_id, cm.message, cm.sent_at, cm.is_read, cm.sender_type,
                COALESCE(wa.first_name, u.first_name) AS first_name,
                COALESCE(wa.last_name,  u.last_name)  AS last_name,
-               CASE WHEN cm.sender_type = 'ai' THEN 'ai'
-                    WHEN cm.sender_id = cm.counselor_id THEN 'wellness_admin'
+               CASE cm.sender_type
+                    WHEN 'ai' THEN 'ai'
+                    WHEN 'counselor' THEN 'wellness_admin'
                     ELSE 'student' END AS sender_role
         FROM counselor_messages cm
-        LEFT JOIN wellness_admins wa ON cm.sender_id = wa.id AND cm.sender_id = cm.counselor_id
-        LEFT JOIN users u            ON cm.sender_id = u.id  AND cm.sender_id = cm.student_id
+        LEFT JOIN wellness_admins wa ON cm.sender_type = 'counselor' AND wa.id = cm.sender_id
+        LEFT JOIN users u            ON cm.sender_type = 'student'   AND u.id  = cm.sender_id
         WHERE cm.student_id = ? AND cm.counselor_id = ? AND cm.id > ?
         ORDER BY cm.sent_at ASC
     ");
@@ -91,16 +92,16 @@ if (isset($_GET['poll_messages'])) {
 
     $db->prepare("
         UPDATE counselor_messages SET is_read = 1
-        WHERE student_id = ? AND counselor_id = ? AND sender_id != ? AND is_read = 0
-    ")->execute([$student_id, $user['id'], $user['id']]);
+        WHERE student_id = ? AND counselor_id = ? AND sender_type = 'student' AND is_read = 0
+    ")->execute([$student_id, $user['id']]);
 
     echo json_encode(['messages' => $msgs]);
     exit;
 }
 
 // ── SIDEBAR COUNTS ────────────────────────────────────────────
-$stmt = $db->prepare("SELECT COUNT(*) as cnt FROM counselor_messages WHERE counselor_id = ? AND sender_id != ? AND sender_type != 'ai' AND is_read = 0");
-$stmt->execute([$user['id'], $user['id']]);
+$stmt = $db->prepare("SELECT COUNT(*) as cnt FROM counselor_messages WHERE counselor_id = ? AND sender_type = 'student' AND is_read = 0");
+$stmt->execute([$user['id']]);
 $unread_msgs = (int)$stmt->fetch()['cnt'];
 
 $stmt = $db->prepare("SELECT COUNT(DISTINCT ca.id) as cnt FROM crisis_alerts ca JOIN appointments a ON a.student_id = ca.student_id WHERE a.counselor_id = ? AND ca.status = 'open'");
@@ -127,15 +128,15 @@ $my_students = $stmt->fetchAll();
 $stmt = $db->prepare("
     SELECT DISTINCT u.id, u.first_name, u.last_name,
         (SELECT cm2.message  FROM counselor_messages cm2 WHERE cm2.student_id = u.id AND cm2.counselor_id = ? ORDER BY cm2.sent_at DESC LIMIT 1) as last_message,
-        (SELECT cm2b.sender_id FROM counselor_messages cm2b WHERE cm2b.student_id = u.id AND cm2b.counselor_id = ? ORDER BY cm2b.sent_at DESC LIMIT 1) as last_sender,
+        (SELECT cm2b.sender_type FROM counselor_messages cm2b WHERE cm2b.student_id = u.id AND cm2b.counselor_id = ? ORDER BY cm2b.sent_at DESC LIMIT 1) as last_sender,
         (SELECT cm3.sent_at  FROM counselor_messages cm3 WHERE cm3.student_id = u.id AND cm3.counselor_id = ? ORDER BY cm3.sent_at DESC LIMIT 1) as last_time,
-        (SELECT COUNT(*)     FROM counselor_messages cm4 WHERE cm4.student_id = u.id AND cm4.counselor_id = ? AND cm4.sender_id != ? AND cm4.sender_type != 'ai' AND cm4.is_read = 0) as unread
+        (SELECT COUNT(*)     FROM counselor_messages cm4 WHERE cm4.student_id = u.id AND cm4.counselor_id = ? AND cm4.sender_type = 'student' AND cm4.is_read = 0) as unread
     FROM users u
     JOIN counselor_messages cm ON cm.student_id = u.id AND cm.counselor_id = ?
     GROUP BY u.id
     ORDER BY last_time DESC
 ");
-$stmt->execute([$user['id'], $user['id'], $user['id'], $user['id'], $user['id'], $user['id']]);
+$stmt->execute([$user['id'], $user['id'], $user['id'], $user['id'], $user['id']]);
 $conversations = $stmt->fetchAll();
 
 $convo_ids    = array_column($conversations, 'id');
@@ -188,12 +189,13 @@ if ($chat_student_id) {
         SELECT cm.id, cm.sender_id, cm.message, cm.is_read, cm.sent_at, cm.sender_type,
                COALESCE(wa.first_name, u.first_name) AS first_name,
                COALESCE(wa.last_name,  u.last_name)  AS last_name,
-               CASE WHEN cm.sender_type = 'ai' THEN 'ai'
-                    WHEN cm.sender_id = cm.counselor_id THEN 'wellness_admin'
+               CASE cm.sender_type
+                    WHEN 'ai' THEN 'ai'
+                    WHEN 'counselor' THEN 'wellness_admin'
                     ELSE 'student' END AS sender_role
         FROM counselor_messages cm
-        LEFT JOIN wellness_admins wa ON cm.sender_id = wa.id AND cm.sender_id = cm.counselor_id
-        LEFT JOIN users u            ON cm.sender_id = u.id  AND cm.sender_id = cm.student_id
+        LEFT JOIN wellness_admins wa ON cm.sender_type = 'counselor' AND wa.id = cm.sender_id
+        LEFT JOIN users u            ON cm.sender_type = 'student'   AND u.id  = cm.sender_id
         WHERE cm.student_id = ? AND cm.counselor_id = ?
         ORDER BY cm.sent_at ASC
         LIMIT 150
@@ -204,8 +206,8 @@ if ($chat_student_id) {
 
     $db->prepare("
         UPDATE counselor_messages SET is_read = 1
-        WHERE student_id = ? AND counselor_id = ? AND sender_id != ? AND is_read = 0
-    ")->execute([$chat_student_id, $user['id'], $user['id']]);
+        WHERE student_id = ? AND counselor_id = ? AND sender_type = 'student' AND is_read = 0
+    ")->execute([$chat_student_id, $user['id']]);
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
@@ -293,8 +295,8 @@ require_once '../../includes/topbar.php';
               $preview   = '';
               $last_t    = '';
               if (!empty($chat_item['last_message'])) {
-                  $ls = (int)($chat_item['last_sender'] ?? 0);
-                  $prefix = $ls === (int)$user['id'] ? 'You: ' : ($ls === MC_AI_SENDER_ID ? 'AI: ' : '');
+                  $ls = (string)($chat_item['last_sender'] ?? '');
+                  $prefix = $ls === 'counselor' ? 'You: ' : ($ls === 'ai' ? 'AI: ' : '');
                   $preview = $prefix . mb_substr(strip_tags($chat_item['last_message']), 0, 28) . (mb_strlen($chat_item['last_message']) > 28 ? '…' : '');
                   if (!empty($chat_item['last_time'])) $last_t = timeAgo($chat_item['last_time']);
               }
@@ -364,6 +366,12 @@ require_once '../../includes/topbar.php';
 
         <div class="reconnect-bar" id="connStrip"><i data-lucide="wifi-off"></i> Connection lost — attempting to reconnect…</div>
 
+        <div class="msg-error-bar" id="msgErrorBar">
+          <i data-lucide="wifi-off"></i>
+          <span class="mer-text">Couldn't send your message.</span>
+          <button type="button" class="mer-retry" onclick="retrySend()">Retry</button>
+        </div>
+
         <div class="chat-messages" id="chatMessages">
 
           <?php if (empty($chat_messages)): ?>
@@ -382,7 +390,7 @@ require_once '../../includes/topbar.php';
       $prev_role   = '';
 
       foreach ($chat_messages as $i => $msg):
-        $is_mine = ((int)$msg['sender_id'] === (int)$user['id']);
+        $is_mine = (($msg['sender_role'] ?? 'wellness_admin') === 'wellness_admin');
         $sender_role = $msg['sender_role'] ?? ($is_mine ? 'wellness_admin' : 'student');
         $is_ai   = $sender_role === 'ai';
         $msg_date    = date('Y-m-d', strtotime($msg['sent_at']));
@@ -404,7 +412,9 @@ require_once '../../includes/topbar.php';
             || (int)$next['sender_id']  !== (int)$msg['sender_id']
             || ($next['sender_role'] ?? 'student') !== $sender_role;
 
-        $row_cls  = 'msg-row ' . ($is_mine ? 'mine' : 'theirs') . ($is_ai ? ' ai' : '');
+        $role_cls = $is_ai ? 'msg-ai'
+                  : ($sender_role === 'wellness_admin' ? 'msg-counselor' : 'msg-student');
+        $row_cls  = 'msg-row ' . ($is_mine ? 'mine' : 'theirs') . ' ' . $role_cls . ($is_ai ? ' ai' : '');
         $row_cls .= $new_group ? ' new-group' : ' same-sender';
         $row_cls .= $is_tail  ? ' tail-end' : '';
 
@@ -435,11 +445,14 @@ require_once '../../includes/topbar.php';
           <?php endif; ?>
 
           <div class="typing-row" id="typingRow">
-            <div class="bub-av is-theirs"><?= $c_initials ?></div>
-            <div class="typing-bubble">
-              <div class="t-dot"></div>
-              <div class="t-dot"></div>
-              <div class="t-dot"></div>
+            <div class="bub-av is-theirs" id="typingAv"><?= $c_initials ?></div>
+            <div class="typing-meta">
+              <div class="typing-label" id="typingLabel">Student is typing…</div>
+              <div class="typing-bubble">
+                <div class="t-dot"></div>
+                <div class="t-dot"></div>
+                <div class="t-dot"></div>
+              </div>
             </div>
           </div>
 
@@ -528,19 +541,101 @@ function scrollBottom(instant = false) {
   if (instant) chatMessages.scrollTop = chatMessages.scrollHeight;
   else chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
 }
+// Render any lucide icons added to the DOM after the page loaded.
+function initIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    try { window.lucide.createIcons(); } catch (e) {}
+  }
+}
 function nearBottom() {
   if (!chatMessages) return true;
   return chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 120;
 }
 
-// ── Send ──────────────────────────────────────────────────────
+// ── Send (core) ───────────────────────────────────────────────
+let lastFailed  = null;
+let aiWaitTimer = null;
+
+function showTyping(label, initials) {
+  const av = document.getElementById('typingAv');
+  const lb = document.getElementById('typingLabel');
+  if (av && initials) av.textContent = initials;
+  if (lb && label)    lb.textContent = label;
+  typingRow?.classList.add('show');
+  scrollBottom();
+}
+function hideTyping() {
+  typingRow?.classList.remove('show');
+  clearTimeout(aiWaitTimer);
+}
+
+function showMsgError(text, withRetry) {
+  const bar = document.getElementById('msgErrorBar');
+  if (!bar) return;
+  const t = bar.querySelector('.mer-text');
+  if (t) t.textContent = text;
+  bar.dataset.retry = withRetry ? '1' : '';
+  bar.classList.add('show');
+}
+function hideMsgError() {
+  const bar = document.getElementById('msgErrorBar');
+  if (bar) bar.classList.remove('show');
+}
+
+async function doSend(txt, tempId) {
+  if (sending) return;
+  sending = true;
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.classList.add('busy'); }
+
+  const fd = new FormData();
+  fd.append('message_text', txt);
+  fd.append('student_id', STUDENT_ID);
+
+  try {
+    const res = await fetch(POST_URL, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd
+    });
+    const data = await res.json();
+
+    if (data.status === 'ok' && data.id) {
+      const tmp = chatMessages?.querySelector(`[data-id="${tempId}"]`);
+      if (tmp) {
+        tmp.dataset.id = String(data.id);
+        tmp.classList.remove('send-failed');
+      }
+      lastMsgId = Math.max(lastMsgId, data.id);
+      lastFailed = null;
+      hideMsgError();
+    } else {
+      lastFailed = { text: txt, tempId: tempId };
+      showMsgError("Couldn't send your message. Please try again.", true);
+      const tmp = chatMessages?.querySelector(`[data-id="${tempId}"]`);
+      if (tmp) tmp.classList.add('send-failed');
+    }
+    setOnline(true);
+  } catch (err) {
+    console.error('[send]', err);
+    setOnline(false);
+    lastFailed = { text: txt, tempId: tempId };
+    showMsgError("You're offline — the message couldn't be sent. Check your connection and retry.", true);
+    const tmp = chatMessages?.querySelector(`[data-id="${tempId}"]`);
+    if (tmp) tmp.classList.add('send-failed');
+  }
+
+  if (sendBtn) {
+    sendBtn.classList.remove('busy');
+    sendBtn.disabled = !msgInput || msgInput.value.trim() === '';
+  }
+  sending = false;
+}
+
+// ── Send (entry) ──────────────────────────────────────────────
 async function sendMessage() {
   if (sending || !msgInput || !sendBtn) return;
   const txt = msgInput.value.trim();
   if (!txt || !STUDENT_ID) return;
-
-  sending = true;
-  sendBtn.disabled = true;
 
   const tempId = 'tmp-' + Date.now();
   appendBubble({
@@ -552,40 +647,14 @@ async function sendMessage() {
   scrollBottom();
   document.getElementById('emptyState')?.remove();
 
-  try {
-    const fd = new FormData();
-    fd.append('message_text', txt);
-    fd.append('student_id', STUDENT_ID);
-    const res  = await fetch(POST_URL, {
-      method: 'POST',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      body: fd
-    });
-    const data = await res.json();
+  await doSend(txt, tempId);
+  msgInput.focus();
+}
 
-    if (data.status === 'ok' && data.id) {
-      const tmp = chatMessages?.querySelector(`[data-id="${tempId}"]`);
-      if (tmp) {
-        tmp.dataset.id = String(data.id);
-        lastMsgId = Math.max(lastMsgId, data.id);
-      }
-    } else {
-      const tmp = chatMessages?.querySelector(`[data-id="${tempId}"]`);
-      if (tmp) tmp.style.opacity = '.5';
-    }
-    setOnline(true);
-  } catch (err) {
-    console.error('[send]', err);
-    setOnline(false);
-    const tmp = chatMessages?.querySelector(`[data-id="${tempId}"]`);
-    if (tmp) tmp.style.opacity = '.5';
-  }
-
-  sending = false;
-  if (msgInput) {
-    msgInput.focus();
-    if (sendBtn) sendBtn.disabled = msgInput.value.trim() === '';
-  }
+// ── Retry a failed send ───────────────────────────────────────
+function retrySend() {
+  if (!lastFailed || sending) return;
+  doSend(lastFailed.text, lastFailed.tempId);
 }
 
 // ── Polling ───────────────────────────────────────────────────
@@ -604,8 +673,10 @@ async function poll() {
 
         // Handle temp message replacement (our own message that was waiting for ID)
         const tempMsg = chatMessages?.querySelector(`[data-id^="tmp-"]`);
-        if (tempMsg && parseInt(m.sender_id, 10) === MY_ID) {
+        if (tempMsg && m.sender_role === 'wellness_admin') {
           tempMsg.dataset.id = String(id);
+          tempMsg.classList.remove('send-failed');
+          hideMsgError();
           const tickSpan = tempMsg.querySelector('.tick-sent');
           if (tickSpan && m.is_read) {
             tickSpan.className = 'tick-read';
@@ -617,9 +688,13 @@ async function poll() {
         // Skip if already rendered (prevents duplicates)
         if (chatMessages?.querySelector(`[data-id="${id}"]`)) return;
 
-        // Show typing indicator for new messages from student
-        if (parseInt(m.sender_id, 10) !== MY_ID) {
-          showTyping();
+        // Show typing indicator for new messages from the student / AI
+        if (m.sender_role !== 'wellness_admin') {
+          const isAi = m.sender_role === 'ai';
+          showTyping(
+            isAi ? 'AI Counselor Assistant is typing…' : 'Student is typing…',
+            isAi ? 'AI' : C_INIT
+          );
           clearTimeout(typingTimers[id]);
           typingTimers[id] = setTimeout(() => {
             hideTyping();
@@ -667,9 +742,6 @@ function startPoll() {
   pollTimer = setTimeout(tick, pollInterval);
 }
 
-function showTyping() { typingRow?.classList.add('show'); scrollBottom(); }
-function hideTyping()  { typingRow?.classList.remove('show'); }
-
 function setOnline(isOnline) {
   if (online === isOnline) return;
   online = isOnline;
@@ -689,6 +761,7 @@ function appendBubble(msg, isMine) {
     s.id = 'sysMsg'; s.className = 'sys-msg';
     s.innerHTML = '<i data-lucide="lock"></i> Only you and this student can read this';
     chatMessages.insertBefore(s, typingRow);
+    initIcons();
   }
   document.getElementById('emptyState')?.remove();
 
@@ -712,7 +785,9 @@ function appendBubble(msg, isMine) {
 
   const row = document.createElement('div');
   row.dataset.id = id;
-  row.className = `msg-row ${isMine ? 'mine' : 'theirs'}${msg.sender_role === 'ai' ? ' ai' : ''} ${newGroup ? 'new-group' : 'same-sender'} tail-end`;
+  const roleCls = msg.sender_role === 'ai' ? 'msg-ai'
+                : (msg.sender_role === 'wellness_admin' ? 'msg-counselor' : 'msg-student');
+  row.className = `msg-row ${isMine ? 'mine' : 'theirs'} ${roleCls}${msg.sender_role === 'ai' ? ' ai' : ''} ${newGroup ? 'new-group' : 'same-sender'} tail-end`;
 
   const avCls  = isMine ? 'is-mine' : 'is-theirs';
   const avInit = isMine ? MY_INIT : (msg.sender_role === 'ai' ? 'AI' : C_INIT);
@@ -808,7 +883,7 @@ if (searchEl) {
 
 // ── Mobile panel switching ────────────────────────────────────
 function mobileShowChat() {
-  if (window.innerWidth > 600) return;
+  if (window.innerWidth > 640) return;
   document.querySelector('.chat-wrap .conv-pane')?.classList.add('hidden-mobile');
   document.querySelector('.chat-wrap .chat-pane')?.classList.add('active-mobile');
 }
@@ -819,7 +894,7 @@ function mobileShowConvs() {
 
 document.querySelectorAll('.convo-item').forEach(function(item) {
   item.addEventListener('click', function() {
-    if (window.innerWidth <= 600) mobileShowChat();
+    if (window.innerWidth <= 640) mobileShowChat();
   });
 });
 
@@ -842,7 +917,7 @@ document.addEventListener('DOMContentLoaded', () => {
   msgInput?.focus();
   if (STUDENT_ID) startPoll();
 
-  if (STUDENT_ID && window.innerWidth <= 600) {
+  if (STUDENT_ID && window.innerWidth <= 640) {
     mobileShowChat();
   }
 });

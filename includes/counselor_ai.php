@@ -56,7 +56,7 @@ function mcRowOnline(array $row): bool
 {
     if ((int)($row['is_active'] ?? 0) !== 1) return false;
     $last = $row['last_activity'] ?? null;
-    if ($last === null || $last === '') return true; // legacy: never tracked → assume available
+    if ($last === null || $last === '') return false; // never tracked → offline, AI stands in
     return strtotime($last) >= time() - MC_AI_OFFLINE_SEC;
 }
 
@@ -211,7 +211,7 @@ function mcAiReply(PDO $db, int $studentId, int $counselorId, string $msg): ?arr
     // History = prior messages (the just-inserted student message is dropped
     // from the tail, since it is appended once below)
     $history = [];
-    $stmt = $db->prepare("SELECT sender_type, message FROM counselor_messages WHERE student_id = ? AND counselor_id = ? ORDER BY id DESC LIMIT 12");
+    $stmt = $db->prepare("SELECT sender_type, message FROM counselor_messages WHERE student_id = ? AND counselor_id = ? ORDER BY id DESC LIMIT 16");
     $stmt->execute([$studentId, $counselorId]);
     $rows = array_reverse($stmt->fetchAll());
     if ($rows && end($rows)['sender_type'] === 'student') {
@@ -241,4 +241,46 @@ function mcAiReply(PDO $db, int $studentId, int $counselorId, string $msg): ?arr
 
     mcInsertAiMessage($db, $studentId, $counselorId, $reply);
     return ['reply' => $reply, 'risk' => $risk['level']];
+}
+
+/**
+ * Detached entry point used by the chat POST handler. Generates the AI
+ * stand-in reply when the counselor is offline, and is safe to run after
+ * the HTTP response has been flushed to the client (the reply then arrives
+ * through the poll endpoint). Never throws — failures are logged.
+ */
+function mcAiRespond(PDO $db, int $studentId, int $counselorId, string $msg): void
+{
+    if (mcCounselorOnline($db, $counselorId)) return;
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    @set_time_limit(0);
+    @ignore_user_abort(true);
+    try {
+        mcAiReply($db, $studentId, $counselorId, $msg);
+    } catch (Throwable $e) {
+        mcAiLog('mcAiReply failed: ' . $e->getMessage());
+    }
+}
+
+/** Write an AI diagnostic line to the project log (survives dead php.ini error_log). */
+function mcAiLog(string $msg): void
+{
+    $dir = dirname(__DIR__) . '/logs';
+    @is_dir($dir) || @mkdir($dir, 0775, true);
+    @file_put_contents($dir . '/ai.log', '[' . date('Y-m-d H:i:s') . '] ' . $msg . "\n", FILE_APPEND);
+    @error_log('[CTU MindCare AI] ' . $msg);
+}
+
+/** Dedupe: return the most recent identical student message (< 30s old). */
+function mcRecentStudentMessage(PDO $db, int $studentId, int $counselorId, string $msg): ?int
+{
+    $stmt = $db->prepare("
+        SELECT id FROM counselor_messages
+        WHERE student_id = ? AND counselor_id = ? AND sender_id = ? AND sender_type = 'student'
+          AND message = ? AND sent_at > (NOW() - INTERVAL 30 SECOND)
+        ORDER BY id DESC LIMIT 1
+    ");
+    $stmt->execute([$studentId, $counselorId, $studentId, $msg]);
+    $id = $stmt->fetchColumn();
+    return $id !== false ? (int)$id : null;
 }

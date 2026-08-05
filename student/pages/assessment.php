@@ -178,7 +178,7 @@ function severityColor(string $s): string {
         'mild'              => '#7A4F0A',
         'moderate'          => '#D4860A',
         'moderately_severe' => '#C0440B',
-        'severe'            => '#B91C1C',
+        'severe'            => '#D96B52',
         default             => '#5C5B57',
     };
 }
@@ -188,7 +188,7 @@ function severityBg(string $s): string {
         'mild'              => '#FDF3DF',
         'moderate'          => '#FEF3C7',
         'moderately_severe' => '#FFEDE0',
-        'severe'            => '#FBEDED',
+        'severe'            => '#FDEEEB',
         default             => '#F7F3EE',
     };
 }

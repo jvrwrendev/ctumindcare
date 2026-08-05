@@ -692,7 +692,7 @@ document.addEventListener('click', e => {
 
 // ── Mobile panel switching ────────────────────────────────────
 function mobileShowChat() {
-  if (window.innerWidth > 600) return;
+  if (window.innerWidth > 640) return;
   document.querySelector('.chat-wrap .conv-pane')?.classList.add('hidden-mobile');
   document.querySelector('.chat-wrap .chat-pane')?.classList.add('active-mobile');
 }
@@ -704,7 +704,7 @@ function mobileShowConvs() {
 // Make conv items trigger mobile panel switch
 document.querySelectorAll('.convo-item').forEach(function(item) {
   item.addEventListener('click', function() {
-    if (window.innerWidth <= 600) mobileShowChat();
+    if (window.innerWidth <= 640) mobileShowChat();
   });
 });
 
@@ -712,7 +712,7 @@ document.querySelectorAll('.convo-item').forEach(function(item) {
 // but if it stays on same page (same conv), show chat panel
 document.querySelectorAll('.sr-item').forEach(function(item) {
   item.addEventListener('click', function() {
-    if (window.innerWidth <= 600) {
+    if (window.innerWidth <= 640) {
       setTimeout(mobileShowChat, 100);
     }
   });
@@ -726,7 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (CONV_ID) startPoll();
 
   // On mobile: if a conversation is active, show the chat panel
-  if (CONV_ID && window.innerWidth <= 600) {
+  if (CONV_ID && window.innerWidth <= 640) {
     mobileShowChat();
   }
 

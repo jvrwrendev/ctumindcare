@@ -213,8 +213,8 @@ $mc_topbar_badge = 'System Admin';
 
 <script>
 const C = window.mcChartColors ? window.mcChartColors() : {};
-const axisTicks = { font: { size: 10, family: "'DM Sans', sans-serif" }, color: C.ticks || '#94A3B8' };
-const axisGrid  = { color: C.grid || 'rgba(100,116,139,.15)' };
+const axisTicks = { font: { size: 10, family: "'DM Sans', sans-serif" }, color: C.ticks || '#718096' };
+const axisGrid  = { color: C.grid || 'rgba(113,128,150,.15)' };
 const chartDefaults = {
   responsive: true,
   maintainAspectRatio: false,
@@ -227,11 +227,11 @@ new Chart(document.getElementById('ciChart').getContext('2d'), {
     labels: <?= json_encode($ci_labels) ?>,
     datasets: [{
       data: <?= json_encode($ci_data) ?>,
-      borderColor: C.teal || '#14B8A6',
-      backgroundColor: 'rgba(20,184,166,0.08)',
+      borderColor: C.teal || '#5FB79B',
+      backgroundColor: 'rgba(56,142,117,0.08)',
       borderWidth: 2,
       pointRadius: 2,
-      pointBackgroundColor: C.teal || '#14B8A6',
+      pointBackgroundColor: C.teal || '#5FB79B',
       tension: .4,
       fill: true
     }]
@@ -252,11 +252,11 @@ new Chart(document.getElementById('moodChart').getContext('2d'), {
     datasets: [{
       data: <?= json_encode($mood_data) ?>,
       backgroundColor: [
-        (C.red || '#EF4444') + '66',
-        (C.amber || '#F59E0B') + '66',
-        (C.gray || '#CBD5E1') + '66',
-        (C.teal || '#14B8A6') + '66',
-        (C.teal || '#14B8A6') + '99'
+        (C.red || '#D96B52') + '66',
+        (C.amber || '#E8A33D') + '66',
+        (C.gray || '#D8D4C6') + '66',
+        (C.teal || '#5FB79B') + '66',
+        (C.teal || '#5FB79B') + '99'
       ],
       borderRadius: 6,
       borderSkipped: false

@@ -10,6 +10,10 @@ requireRole('wellness_admin');
 $user = currentUser();
 $db   = getDB();
 
+require_once '../../includes/counselor_ai.php';
+mcEnsureAiTables($db);
+mcTouchPresence($db, (int)$user['id']);
+
 $flash = getFlash();
 
 // ── Mark risk flag as reviewed ────────────────────────────────
@@ -29,9 +33,9 @@ $waiting_requests = (int)$db->query("SELECT COUNT(*) FROM chatbot_booking_reques
 // ── Topbar bell counts ────────────────────────────────────────────────
 $stmt = $db->prepare("
     SELECT COUNT(*) as cnt FROM counselor_messages
-    WHERE counselor_id = ? AND sender_id != ? AND sender_type != 'ai' AND is_read = 0
+    WHERE counselor_id = ? AND sender_type = 'student' AND is_read = 0
 ");
-$stmt->execute([$user['id'], $user['id']]);
+$stmt->execute([$user['id']]);
 $unread_msgs = (int)$stmt->fetch()['cnt'];
 
 $stmt = $db->prepare("

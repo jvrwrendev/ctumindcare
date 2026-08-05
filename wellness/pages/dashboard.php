@@ -19,6 +19,10 @@ if (!$user) {
 
 $db = getDB();
 
+require_once '../../includes/counselor_ai.php';
+mcEnsureAiTables($db);
+mcTouchPresence($db, (int)$user['id']);
+
 // ── Active page (sidebar navigation) ─────────────────────────
 $page = $_GET['p'] ?? 'dashboard';
 
@@ -239,13 +243,16 @@ if (isset($_GET['poll_messages'])) {
     if (!$student_id) { echo json_encode(['messages' => []]); exit; }
 
     $stmt = $db->prepare("
-        SELECT cm.id, cm.sender_id, cm.message, cm.sent_at,
+        SELECT cm.id, cm.sender_id, cm.message, cm.sent_at, cm.sender_type,
                COALESCE(wa.first_name, u.first_name) AS first_name,
                COALESCE(wa.last_name, u.last_name) AS last_name,
-               CASE WHEN cm.sender_id = cm.counselor_id THEN 'wellness_admin' ELSE 'student' END AS sender_role
+               CASE cm.sender_type
+                    WHEN 'ai' THEN 'ai'
+                    WHEN 'counselor' THEN 'wellness_admin'
+                    ELSE 'student' END AS sender_role
         FROM counselor_messages cm
-        LEFT JOIN wellness_admins wa ON cm.sender_id = wa.id AND cm.sender_id = cm.counselor_id
-        LEFT JOIN users u ON cm.sender_id = u.id AND cm.sender_id = cm.student_id
+        LEFT JOIN wellness_admins wa ON cm.sender_type = 'counselor' AND wa.id = cm.sender_id
+        LEFT JOIN users u            ON cm.sender_type = 'student'   AND u.id  = cm.sender_id
         WHERE cm.student_id = ? AND cm.counselor_id = ? AND cm.id > ?
         ORDER BY cm.sent_at ASC
     ");
@@ -255,8 +262,8 @@ if (isset($_GET['poll_messages'])) {
     // Mark read
     $db->prepare("
         UPDATE counselor_messages SET is_read = 1
-        WHERE student_id = ? AND counselor_id = ? AND sender_id != ? AND is_read = 0
-    ")->execute([$student_id, $user['id'], $user['id']]);
+        WHERE student_id = ? AND counselor_id = ? AND sender_type = 'student' AND is_read = 0
+    ")->execute([$student_id, $user['id']]);
 
     echo json_encode(['messages' => $msgs]);
     exit;
@@ -317,9 +324,9 @@ $open_alerts_count = (int)$stmt->fetch()['cnt'];
 
 $stmt = $db->prepare("
     SELECT COUNT(*) as cnt FROM counselor_messages
-    WHERE counselor_id = ? AND sender_id != ? AND is_read = 0
+    WHERE counselor_id = ? AND sender_type = 'student' AND is_read = 0
 ");
-$stmt->execute([$user['id'], $user['id']]);
+$stmt->execute([$user['id']]);
 $unread_msgs = (int)$stmt->fetch()['cnt'];
 
 // Open AI risk flags (for sidebar badge)
@@ -462,13 +469,13 @@ $stmt = $db->prepare("
          ORDER BY cm3.sent_at DESC LIMIT 1) as last_time,
         (SELECT COUNT(*) FROM counselor_messages cm4
          WHERE cm4.student_id = u.id AND cm4.counselor_id = ?
-           AND cm4.sender_id != ? AND cm4.is_read = 0) as unread
+           AND cm4.sender_type = 'student' AND cm4.is_read = 0) as unread
     FROM users u
     JOIN counselor_messages cm ON cm.student_id = u.id AND cm.counselor_id = ?
     GROUP BY u.id
     ORDER BY last_time DESC
 ");
-$stmt->execute([$user['id'], $user['id'], $user['id'], $user['id'], $user['id']]);
+$stmt->execute([$user['id'], $user['id'], $user['id'], $user['id']]);
 $conversations = $stmt->fetchAll();
 
 // Active chat student
@@ -480,13 +487,16 @@ if ($chat_student_id) {
         if ((int)$s['id'] === $chat_student_id) { $chat_student = $s; break; }
     }
     $stmt = $db->prepare("
-        SELECT cm.id, cm.sender_id, cm.message, cm.sent_at,
+        SELECT cm.id, cm.sender_id, cm.message, cm.sent_at, cm.sender_type,
                COALESCE(wa.first_name, u.first_name) AS first_name,
                COALESCE(wa.last_name, u.last_name) AS last_name,
-               CASE WHEN cm.sender_id = cm.counselor_id THEN 'wellness_admin' ELSE 'student' END AS sender_role
+               CASE cm.sender_type
+                    WHEN 'ai' THEN 'ai'
+                    WHEN 'counselor' THEN 'wellness_admin'
+                    ELSE 'student' END AS sender_role
         FROM counselor_messages cm
-        LEFT JOIN wellness_admins wa ON cm.sender_id = wa.id AND cm.sender_id = cm.counselor_id
-        LEFT JOIN users u ON cm.sender_id = u.id AND cm.sender_id = cm.student_id
+        LEFT JOIN wellness_admins wa ON cm.sender_type = 'counselor' AND wa.id = cm.sender_id
+        LEFT JOIN users u            ON cm.sender_type = 'student'   AND u.id  = cm.sender_id
         WHERE cm.student_id = ? AND cm.counselor_id = ?
         ORDER BY cm.sent_at ASC LIMIT 100
     ");
@@ -496,8 +506,8 @@ if ($chat_student_id) {
     // Mark unread as read
     $db->prepare("
         UPDATE counselor_messages SET is_read = 1
-        WHERE student_id = ? AND counselor_id = ? AND sender_id != ? AND is_read = 0
-    ")->execute([$chat_student_id, $user['id'], $user['id']]);
+        WHERE student_id = ? AND counselor_id = ? AND sender_type = 'student' AND is_read = 0
+    ")->execute([$chat_student_id, $user['id']]);
 }
 
 // Progress: selected student
@@ -728,9 +738,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--text);m
 .msg-row{display:flex;align-items:flex-end;gap:8px}
 .msg-row.mine{flex-direction:row-reverse}
 .msg-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
-.msg-bubble{max-width:70%;padding:9px 13px;border-radius:13px;font-size:13px;line-height:1.5}
-.msg-row:not(.mine) .msg-bubble{background:var(--sand-2);border-radius:0 13px 13px 13px;color:var(--text)}
-.msg-row.mine .msg-bubble{background:var(--sage);color:#fff;border-radius:13px 0 13px 13px}
+.msg-bubble{max-width:70%;min-width:0;padding:9px 13px;border-radius:13px;font-size:13px;line-height:1.5;overflow-wrap:break-word;word-break:break-word;white-space:pre-wrap}
+.msg-row.mine .msg-bubble{border-radius:13px 0 13px 13px}
+.msg-row:not(.mine) .msg-bubble{border-radius:0 13px 13px 13px}
 .msg-nm{font-size:10px;color:var(--text-3);margin-bottom:3px}
 .msg-time{font-size:10px;color:var(--text-3);margin-top:3px}
 .chat-input{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end}
@@ -1297,9 +1307,11 @@ require_once '../../includes/topbar.php';
           </div>
           <div class="msg-list" id="msg-list">
             <?php foreach ($chat_messages as $m): ?>
-            <?php $sender_role = $m['sender_role'] ?? ((int)$m['sender_id'] === (int)$user['id'] ? 'wellness_admin' : 'student');
-                  $isMe = $sender_role === 'wellness_admin'; ?>
-            <div class="msg-row <?= $isMe ? 'mine' : '' ?>" data-id="<?= $m['id'] ?>">
+            <?php $sender_role = $m['sender_role'] ?? (($m['sender_type'] ?? '') === 'counselor' ? 'wellness_admin' : 'student');
+                  $isMe = $sender_role === 'wellness_admin';
+                  $role_cls = $sender_role === 'ai' ? 'msg-ai'
+                            : ($sender_role === 'wellness_admin' ? 'msg-counselor' : 'msg-student'); ?>
+            <div class="msg-row <?= $isMe ? 'mine' : '' ?> <?= $role_cls ?>" data-id="<?= $m['id'] ?>">
               <div class="msg-av" style="background:<?= $isMe ? 'var(--sage)' : 'var(--sand-2)' ?>;color:<?= $isMe ? '#fff' : 'var(--text)' ?>">
                 <?= strtoupper(substr($m['first_name'],0,1).substr($m['last_name'],0,1)) ?>
               </div>
@@ -1363,7 +1375,7 @@ require_once '../../includes/topbar.php';
 
       // Optimistic UI
       const div = document.createElement('div');
-      div.className = 'msg-row mine';
+      div.className = 'msg-row mine msg-counselor';
       const escaped = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
       div.innerHTML = `<div class="msg-av" style="background:var(--sage);color:#fff"><?= strtoupper(substr($user['first_name'],0,1).substr($user['last_name'],0,1)) ?></div>
         <div><div class="msg-nm">You</div><div class="msg-bubble">${escaped}</div><div class="msg-time">Just now</div></div>`;
@@ -1378,11 +1390,11 @@ require_once '../../includes/topbar.php';
           if (data.messages && data.messages.length) {
             data.messages.forEach(m => {
               lastMsgId = Math.max(lastMsgId, m.id);
-              const senderRole = m.sender_role || (m.sender_id == counselorId ? 'wellness_admin' : 'student');
+              const senderRole = m.sender_role || (m.sender_type === 'counselor' ? 'wellness_admin' : 'student');
               if (senderRole === 'wellness_admin') return; // own message already shown
               if (ml.querySelector(`[data-id="${m.id}"]`)) return;
               const div = document.createElement('div');
-              div.className = 'msg-row';
+              div.className = 'msg-row ' + (senderRole === 'ai' ? 'msg-ai' : (senderRole === 'wellness_admin' ? 'msg-counselor' : 'msg-student'));
               div.dataset.id = m.id;
               const initials = ((m.first_name||'')[0] + (m.last_name||'')[0]).toUpperCase();
               const safeText = (m.message || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');

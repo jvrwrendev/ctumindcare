@@ -88,7 +88,7 @@ $mc_title = 'Sign In — CTU MindCare';
     <p class="hero-body">A safe, supportive space for CTU Consolacion students to track their wellness, connect with counselors, and find the support they deserve.</p>
   </div>
   <div class="pill-wrap">
-    <div class="mood-pill"><div class="pill-dot" style="background:#6EE7B7"></div> Feeling good today</div>
+    <div class="mood-pill"><div class="pill-dot" style="background:#388E75"></div> Feeling good today</div>
     <div class="mood-pill"><div class="pill-dot" style="background:#FDE68A"></div> A bit stressed</div>
     <div class="mood-pill"><div class="pill-dot" style="background:#C4B5FD"></div> Anxious but okay</div>
     <div class="mood-pill"><div class="pill-dot" style="background:#FCA5A5"></div> Need support</div>

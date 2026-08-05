@@ -429,9 +429,9 @@ $mc_title = 'Dashboard — CTU MindCare';
 <script>
 const colors = window.mcChartColors ? window.mcChartColors() : {};
 const levelColors = function (lv) {
-  if (lv === null || lv === undefined) return { bg: colors.gray || 'rgba(148,163,184,.25)', border: colors.gray || '#94A3B8' };
-  if (lv <= 2) return { bg: colors.amber || 'rgba(245,158,11,.25)', border: colors.amber || '#F59E0B' };
-  return { bg: colors.teal || 'rgba(20,184,166,.4)', border: colors.teal || '#14B8A6' };
+  if (lv === null || lv === undefined) return { bg: colors.gray || 'rgba(113,128,150,.25)', border: colors.gray || '#718096' };
+  if (lv <= 2) return { bg: colors.amber || 'rgba(232,163,61,.25)', border: colors.amber || '#E8A33D' };
+  return { bg: colors.teal || 'rgba(56,142,117,.4)', border: colors.teal || '#5FB79B' };
 };
 const rawData = <?= json_encode($chart_data) ?>;
 const chartData = rawData.map(function (lv) { return lv === null ? 0 : lv; });
@@ -467,12 +467,12 @@ new Chart(ctx, {
     scales: {
       y: {
         min: 0, max: 5,
-        ticks: { stepSize: 1, font: { size: 10 }, color: colors.ticks || '#94A3B8' },
+        ticks: { stepSize: 1, font: { size: 10 }, color: colors.ticks || '#718096' },
         grid: { color: colors.grid || 'rgba(100,116,139,.15)' },
         border: { display: false }
       },
       x: {
-        ticks: { font: { size: 11 }, color: colors.ticks || '#94A3B8' },
+        ticks: { font: { size: 11 }, color: colors.ticks || '#718096' },
         grid: { display: false },
         border: { display: false }
       }
