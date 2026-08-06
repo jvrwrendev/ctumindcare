@@ -12,6 +12,7 @@
 //  Role-gated: students and wellness admins only.
 // ============================================================
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/counselor_ai.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -77,7 +78,16 @@ function ensureTables(PDO $db): void
 
 function activeCounselors(PDO $db): array
 {
+    // Online counselors only — is_active is the live auth-state flag
     $stmt = $db->prepare("SELECT id, first_name, last_name, email, specialization FROM wellness_admins WHERE is_active = 1 ORDER BY first_name ASC");
+    $stmt->execute();
+    return $stmt->fetchAll();
+}
+
+/** All wellness counselors — booking availability must include offline counselors. */
+function allCounselors(PDO $db): array
+{
+    $stmt = $db->prepare("SELECT id, first_name, last_name, email, specialization FROM wellness_admins ORDER BY first_name ASC");
     $stmt->execute();
     return $stmt->fetchAll();
 }
@@ -243,6 +253,7 @@ function flagStudent(PDO $db, int $studentId, string $risk, string $reason, ?int
 //  GET — history, availability, notifications, greeting
 // ══════════════════════════════════════════════════════════════
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    mcSweepStaleCounselors($db);
     $stmt = $db->prepare("SELECT id, sender, message FROM chatbot_messages WHERE user_id = ? AND user_role = ? ORDER BY id DESC LIMIT 50");
     $stmt->execute([$user['id'], $role]);
     $rows = array_reverse($stmt->fetchAll());
@@ -467,7 +478,7 @@ function handleStudentFlow(PDO $db, array $user, string $msg, array $risk): arra
         $state['step'] = 'time';
         $_SESSION['cb_booking'] = $state;
 
-        $counselors = activeCounselors($db);
+        $counselors = allCounselors($db);
         $open = availableSlots($db, $counselors, $date);
         $timeChips = [];
         foreach (array_slice($open, 0, 8) as $slot) {
@@ -490,7 +501,7 @@ function handleStudentFlow(PDO $db, array $user, string $msg, array $risk): arra
     if ($step === 'time') {
         $time = parseTimeInput($msg);
         $date = $state['date'];
-        $counselors = activeCounselors($db);
+        $counselors = allCounselors($db);
         $open = availableSlots($db, $counselors, $date);
 
         if (!$time || !in_array($time, $open, true)) {
@@ -537,7 +548,7 @@ function handleStudentFlow(PDO $db, array $user, string $msg, array $risk): arra
         $date = $state['date'];
         $time = $state['time'];
         $topic = $state['topic'];
-        $counselors = activeCounselors($db);
+        $counselors = allCounselors($db);
         $studentId = (int)$user['id'];
 
         if (empty($counselors)) {
@@ -607,8 +618,8 @@ function handleStudentFlow(PDO $db, array $user, string $msg, array $risk): arra
 // ══════════════════════════════════════════════════════════════
 function generalAI(PDO $db, array $user, string $role, string $msg, bool $isStaffPrompt): string
 {
-    if (empty(OPENAI_API_KEY)) {
-        return "The assistant isn't configured yet — please ask the MIS office to add the OpenAI API key in includes/config.php.";
+    if (empty(AI_API_KEY)) {
+        return "The assistant isn't configured yet — please ask the MIS office to add the AI API key in includes/config.php.";
     }
 
     $system = $isStaffPrompt
@@ -633,7 +644,7 @@ function generalAI(PDO $db, array $user, string $role, string $msg, bool $isStaf
     }
 
     $payload = json_encode([
-        'model'       => OPENAI_MODEL,
+        'model'       => AI_MODEL,
         'messages'    => $history,
         'max_tokens'  => 500,
         'temperature' => 0.7,
@@ -642,14 +653,14 @@ function generalAI(PDO $db, array $user, string $role, string $msg, bool $isStaf
     $ctx = stream_context_create([
         'http' => [
             'method'        => 'POST',
-            'header'        => "Content-Type: application/json\r\nAuthorization: Bearer " . OPENAI_API_KEY . "\r\n",
+            'header'        => "Content-Type: application/json\r\nAuthorization: Bearer " . AI_API_KEY . "\r\nHTTP-Referer: " . SITE_URL . "\r\nX-Title: CTU MindCare\r\n",
             'content'       => $payload,
             'timeout'       => 30,
             'ignore_errors' => true,
         ],
     ]);
 
-    $raw  = @file_get_contents('https://api.openai.com/v1/chat/completions', false, $ctx);
+    $raw  = @file_get_contents(AI_BASE_URL . '/chat/completions', false, $ctx);
     $data = json_decode($raw ?: '', true);
 
     if (is_array($data) && isset($data['choices'][0]['message']['content'])) {

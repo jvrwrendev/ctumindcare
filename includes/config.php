@@ -10,8 +10,9 @@ define('SESSION_LIFETIME', 7200);
 define('MOOD_RISK_DAYS', 3);
 define('MOOD_RISK_LEVEL', 2);
 
-define('OPENAI_API_KEY', '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');
-define('OPENAI_MODEL', 'gpt-4o-mini');
+define('AI_API_KEY',   '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');
+define('AI_MODEL',     'openrouter/free');
+define('AI_BASE_URL',  'https://openrouter.ai/api/v1');
 
 function getDB(): PDO {
     static $pdo = null;

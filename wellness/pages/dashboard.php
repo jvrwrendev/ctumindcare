@@ -591,8 +591,12 @@ $flash = getFlash();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Counselor Dashboard — CTU MindCare</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<?php
+// Load the shared design system: mindcare.css, Lucide icons + the
+// icon initializer (createIcons), theme handling, and core JS.
+$mc_title = 'Counselor Dashboard — CTU MindCare';
+require_once '../../includes/assets.php';
+?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -605,6 +609,20 @@ $flash = getFlash();
   --blue:#2460A7;--blue-light:#EBF4FF;
   --text:#2C2C2A;--text-2:#5C5B57;--text-3:#9A9891;
   --white:#FFFFFF;--border:#E8E4DE;--border-2:#D6D0C8;
+  /* Match the legacy 58px topbar so the shared sidebar/theming matures: */
+  --topbar-h:58px;
+}
+/* Dark mode: map this page's custom palette onto the app's dark tokens
+   so sidebar icons, cards and text stay legible when data-theme is dark. */
+[data-theme="dark"]{
+  --sage:#4FB493;--sage-2:#66C7A5;--sage-light:#122E26;--sage-mid:#1D4A3C;--sage-dark:#8FDCC2;
+  --sand:#0B1220;--sand-2:#16213A;--sand-3:#1B2944;
+  --lav:#A78BFA;--lav-light:#211A3A;
+  --coral:#E0876F;--coral-light:#331A14;
+  --blue:#4FB493;--blue-light:#122E26;
+  --amber:#FBBF24;--amber-light:#2E2410;
+  --text:#E2E8F0;--text-2:#A8B3C7;--text-3:#64748B;
+  --white:#111A2E;--border:#1E2A44;--border-2:#2B3A5C;
 }
 body{font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--text);min-height:100vh}
 
@@ -724,13 +742,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--sand);color:var(--text);m
 
 /* ── Chat ── */
 .chat-layout{display:grid;grid-template-columns:240px 1fr;gap:14px;height:calc(100vh - 200px);min-height:400px}
-.convo-list{background:var(--white);border:1px solid var(--border);border-radius:13px;padding:12px;overflow-y:auto}
+.convo-list{background:var(--white);border:1px solid var(--border);border-radius:13px;padding:12px;overflow-y:auto;min-height:0}
 .convo-item{display:flex;align-items:center;gap:9px;padding:9px 8px;border-radius:8px;cursor:pointer;text-decoration:none;margin-bottom:2px}
 .convo-item:hover{background:var(--sand)}
 .convo-item.active{background:var(--sage-light)}
 .ci-nm{font-size:12px;font-weight:500;color:var(--text);margin-bottom:1px}
 .ci-last{font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
-.chat-panel{background:var(--white);border:1px solid var(--border);border-radius:13px;display:flex;flex-direction:column;overflow:hidden}
+.chat-panel{background:var(--white);border:1px solid var(--border);border-radius:13px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .chat-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
 .chat-head-name{font-size:14px;font-weight:600;color:var(--text)}
 .chat-head-sub{font-size:11px;color:var(--text-3)}

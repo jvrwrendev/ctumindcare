@@ -40,10 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$user || !verifyPassword($password, $user['password'])) {
                 $error = 'Incorrect email or password. Please try again.';
-            } elseif (!$user['is_active']) {
-                $error = $role === 'student'
-                    ? 'Your account is not active yet. The MIS office must approve it before you can sign in.'
-                    : 'Your account is not active yet. Please contact the system administrator.';
+            } elseif ($role === 'student' && !$user['is_active']) {
+                // Students require MIS approval before their first sign-in.
+                $error = 'Your account is not active yet. The MIS office must approve it before you can sign in.';
+            } elseif ($role === 'system_admin' && !$user['is_active']) {
+                // System admins are managed by the admin panel; counselors activate on login.
+                $error = 'Your account is not active yet. Please contact the system administrator.';
             } else {
                 session_regenerate_id(true);
                 $_SESSION['user_id']   = $user['id'];
@@ -56,6 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     default          => 'users',
                 };
                 $db->prepare("UPDATE {$table} SET updated_at = NOW() WHERE id = ?")->execute([$user['id']]);
+
+                // Counselors: a successful login marks them online immediately.
+                if ($role === 'wellness_admin') {
+                    try {
+                        $db->prepare("UPDATE wellness_admins SET is_active = 1, last_activity = NOW() WHERE id = ?")->execute([$user['id']]);
+                    } catch (Throwable $e) {
+                        error_log('[CTU MindCare login] ' . $e->getMessage());
+                    }
+                }
 
                 setFlash('success', 'Welcome back, ' . $user['first_name'] . '!');
                 redirectIfLoggedIn();

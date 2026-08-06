@@ -32,11 +32,13 @@ function currentUser(): ?array {
             FROM users WHERE id = ? AND is_active = 1
         ");
     } elseif ($role === 'wellness_admin') {
+        // is_active is the counselor's live online flag (set on login, cleared on
+        // logout/stale sweep) — the session itself is the access gate.
         $stmt = $db->prepare("
             SELECT id, NULL as student_id, first_name, last_name, email,
                    'wellness_admin' as role, NULL as display_name,
                    NULL as profile_photo, NULL as specialization
-            FROM wellness_admins WHERE id = ? AND is_active = 1
+            FROM wellness_admins WHERE id = ?
         ");
     } elseif ($role === 'system_admin') {
         $stmt = $db->prepare("

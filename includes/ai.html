@@ -1,0 +1,38 @@
+<?php
+
+define('DB_HOST', 'localhost');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'ctumindcares');
+
+define('SITE_NAME', 'CTU MindCare');
+define('SITE_URL', 'http://localhost/ctumindcare');
+define('SITE_ROOT', __DIR__ . '/..');
+
+define('SESSION_LIFETIME', 7200);
+define('MOOD_RISK_DAYS', 3);
+define('MOOD_RISK_LEVEL', 2);
+
+// Gemini Configuration
+define('GEMINI_API_KEY', 'AQ.Ab8RN6KjWX0VRV0uGa8MAassSYSRQBsp1155G7oeBPHkh6rQxA');
+define('GEMINI_MODEL', 'gemini-2.5-flash');
+
+function getDB(): PDO {
+    static $pdo = null;
+
+    if ($pdo === null) {
+        try {
+            $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ]);
+        } catch (PDOException $e) {
+            die($e->getMessage());
+        }
+    }
+
+    return $pdo;
+}

@@ -15,6 +15,7 @@ const MC_AI_NAME        = 'AI Counselor Assistant';
 const MC_AI_SENDER_ID   = 0;        // AI messages carry this sender_id
 const MC_AI_OFFLINE_SEC = 180;      // counselor idle threshold before AI takes over
 const MC_AI_TOUCH_SEC   = 60;       // presence heartbeat throttle
+const MC_AI_SWEEP_SEC   = 300;      // idle counselor marked offline after this (browser close / session expiry)
 
 /** Idempotent migrations for the AI counselor feature. */
 function mcEnsureAiTables(PDO $db): void
@@ -69,9 +70,20 @@ function mcCounselorOnline(PDO $db, int $counselorId): bool
     return $row !== false && mcRowOnline($row);
 }
 
+/**
+ * Mark counselors offline when their presence has gone stale — covers
+ * browser closure, session expiry, and any logout that skipped the clean
+ * update. Cheap on the tiny wellness_admins table; safe to call anywhere.
+ */
+function mcSweepStaleCounselors(PDO $db): void
+{
+    $db->exec("UPDATE wellness_admins SET is_active = 0 WHERE is_active = 1 AND (last_activity IS NULL OR last_activity < NOW() - INTERVAL " . (int)MC_AI_SWEEP_SEC . " SECOND)");
+}
+
 /** Throttled presence heartbeat (at most once per MC_AI_TOUCH_SEC). */
 function mcTouchPresence(PDO $db, int $counselorId): void
 {
+    mcSweepStaleCounselors($db);
     $stmt = $db->prepare("SELECT last_activity FROM wellness_admins WHERE id = ?");
     $stmt->execute([$counselorId]);
     $last = $stmt->fetchColumn();
@@ -120,10 +132,10 @@ function mcInsertAiMessage(PDO $db, int $studentId, int $counselorId, string $re
 /** OpenAI chat completion; returns text or null on failure. */
 function mcChatCompletion(array $messages): ?string
 {
-    if (empty(OPENAI_API_KEY)) return null;
+    if (empty(AI_API_KEY)) return null;
 
     $payload = json_encode([
-        'model'       => OPENAI_MODEL,
+        'model'       => AI_MODEL,
         'messages'    => $messages,
         'max_tokens'  => 400,
         'temperature' => 0.7,
@@ -132,14 +144,14 @@ function mcChatCompletion(array $messages): ?string
     $ctx = stream_context_create([
         'http' => [
             'method'        => 'POST',
-            'header'        => "Content-Type: application/json\r\nAuthorization: Bearer " . OPENAI_API_KEY . "\r\n",
+            'header'        => "Content-Type: application/json\r\nAuthorization: Bearer " . AI_API_KEY . "\r\nHTTP-Referer: " . SITE_URL . "\r\nX-Title: CTU MindCare\r\n",
             'content'       => $payload,
             'timeout'       => 40,
             'ignore_errors' => true,
         ],
     ]);
 
-    $raw  = @file_get_contents('https://api.openai.com/v1/chat/completions', false, $ctx);
+    $raw  = @file_get_contents(AI_BASE_URL . '/chat/completions', false, $ctx);
     $data = json_decode($raw ?: '', true);
 
     if (is_array($data) && isset($data['choices'][0]['message']['content'])) {

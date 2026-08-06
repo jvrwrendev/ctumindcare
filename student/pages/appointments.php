@@ -12,11 +12,10 @@ $db   = getDB();
 $error   = '';
 $success = '';
 
-// ── Load all wellness counselors ─────────────────────────────
+// ── Load all wellness counselors (offline ones remain bookable) ─
 $stmt = $db->prepare("
     SELECT id, first_name, last_name, email
     FROM wellness_admins
-    WHERE is_active = 1
     ORDER BY first_name ASC
 ");
 $stmt->execute();

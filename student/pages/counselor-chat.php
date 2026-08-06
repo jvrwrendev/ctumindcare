@@ -20,6 +20,7 @@ if (!function_exists('clean')) {
 }
 
 // ── Load all counselors (active first) with presence info ─────
+mcSweepStaleCounselors($db);
 $stmt = $db->prepare("SELECT id, first_name, last_name, email, is_active, last_activity FROM wellness_admins ORDER BY is_active DESC, first_name ASC");
 $stmt->execute();
 $counselors = $stmt->fetchAll();
@@ -48,6 +49,7 @@ if (isset($_GET['poll'])) {
     $cid      = (int)($_GET['counselor'] ?? 0);
     header('Content-Type: application/json');
     if (!$cid) { echo json_encode(['messages' => []]); exit; }
+    mcSweepStaleCounselors($db);
 
     $stmt = $db->prepare("
         SELECT cm.id, cm.sender_id, cm.message, cm.sent_at, cm.is_read, cm.sender_type,
