@@ -10,9 +10,9 @@ define('SESSION_LIFETIME', 7200);
 define('MOOD_RISK_DAYS', 3);
 define('MOOD_RISK_LEVEL', 2);
 
-define('AI_API_KEY',   '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');
-define('AI_MODEL',     'openrouter/free');
-define('AI_BASE_URL',  'https://openrouter.ai/api/v1');
+define('AI_API_KEY',   'SK-API');
+define('AI_MODEL',     'openrouter/model');
+define('AI_BASE_URL',  'https');
 
 function getDB(): PDO {
     static $pdo = null;

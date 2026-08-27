@@ -81,4 +81,4 @@ if ($cb_role === 'student') {
     <?php endif; ?>
   </div>
 </div>
-<script src="<?= SITE_URL ?>/chatbot/chat.js" defer></script>
+<script defer src="<?= SITE_URL ?>/chatbot/chat.js?v=2"></script>

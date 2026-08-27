@@ -107,6 +107,7 @@ $mc_menus = [
                     ['dashboard.php?p=dashboard',        'layout-dashboard', 'Dashboard',       'dashboard'],
                     ['dashboard.php?p=students',         'users',            'My students',     'students'],
                     ['dashboard.php?p=appointments',     'calendar',         'Appointments',    'appointments'],
+                    ['dashboard.php?p=availability',     'calendar-clock',   'Availability',    'availability'],
                     ['messages.php',                     'messages-square',  'Messages',        'messages', null, 'messages'],
                     ['../../chatbot/index.php',          'bot',              'AI Assistant',    'chatbot'],
                     ['ai-logs.php',                      'shield',           'AI support logs', 'ai-logs', null, 'ai-logs'],

@@ -13,6 +13,7 @@
 // ============================================================
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/counselor_ai.php';
+require_once __DIR__ . '/../includes/counselor_availability.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -180,17 +181,15 @@ function bookedSlots(PDO $db, int $counselorId, string $date): array
     return array_column($stmt->fetchAll(), 'appointment_time');
 }
 
-/** Slots available across the given counselors on a date. */
+/** Slots available across the given counselors on a date (window-aware). */
 function availableSlots(PDO $db, array $counselors, string $date): array
 {
-    $slots = timeSlots();
+    $slots = [];
     foreach ($counselors as $c) {
-        foreach (bookedSlots($db, (int)$c['id'], $date) as $taken) {
-            $idx = array_search($taken, $slots, true);
-            if ($idx !== false) unset($slots[$idx]);
-        }
+        // Each counselor contributes their own grid∩window − booked slots.
+        $slots = array_merge($slots, mcSlotsForCounselorDate($db, (int)$c['id'], $date));
     }
-    $slots = array_values($slots);
+    $slots = array_values(array_unique($slots));
     // Drop slots already past (for today only)
     if ($date === date('Y-m-d')) {
         $now = time();
@@ -281,11 +280,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $greeting = "Welcome back! I'm your AI support assistant for the Wellness Office. Ask me for guidance, drafting help, or wellness resources.";
     }
 
+    // Starter chips shown on a fresh conversation (role-appropriate).
+    if ($role === 'student') {
+        $chips = [
+            ['label' => '📅 Book a session', 'value' => 'book an appointment'],
+            ['label' => '😟 I\u2019m feeling anxious', 'value' => 'I am feeling very anxious right now'],
+            ['label' => '😴 Trouble sleeping', 'value' => 'I have trouble sleeping at night'],
+            ['label' => '💬 Talk to a counselor', 'value' => 'I want to talk to a human counselor'],
+        ];
+    } else {
+        $chips = [];
+    }
+
     echo json_encode([
         'messages'          => $rows,
         'greeting'          => $greeting,
         'counselors_online' => $counselorsOnline,
         'pending_booking'   => $pendingBooking,
+        'chips'             => $chips,
     ]);
     exit;
 }
@@ -362,7 +374,16 @@ if ($role === 'student') {
     $actions = $flow['actions'];
     $intent  = $flow['intent'];
 } else {
-    $reply = generalAI($db, $user, $role, $msg, true);
+    // Wellness staff: availability commands are handled deterministically;
+    // everything else falls back to the staff-mode general AI.
+    $avail = mcHandleCounselorCommand($db, $user, $msg);
+    if ($avail) {
+        $reply  = $avail['reply'];
+        $intent = $avail['intent'];
+    } else {
+        $reply  = generalAI($db, $user, $role, $msg, true);
+        $intent = 'general';
+    }
 }
 
 saveMessage($db, (int)$user['id'], $role, 'bot', $reply, 'low');
@@ -564,12 +585,25 @@ function handleStudentFlow(PDO $db, array $user, string $msg, array $risk): arra
             ];
         }
 
-        // Pick a counselor with a free slot; fall back to the first active one
+        // Pick a counselor whose availability window contains the slot
+        // AND who ISN'T already booked at that time.
         $counselor = null;
         foreach ($counselors as $c) {
-            if (!in_array($time, bookedSlots($db, (int)$c['id'], $date), true)) { $counselor = $c; break; }
+            $cid = (int)$c['id'];
+            if (!in_array($time, bookedSlots($db, $cid, $date), true)
+                && mcSlotInWindow($db, $cid, $date, $time)) {
+                $counselor = $c;
+                break;
+            }
         }
-        if (!$counselor) $counselor = $counselors[0];
+        if (!$counselor) {
+            unset($_SESSION['cb_booking']);
+            return [
+                'intent' => 'booking',
+                'reply'  => 'Just missed it — that slot is no longer open for any counselor. Could we try a different time?',
+                'chips'  => [['label' => '📅 Book another time', 'value' => 'book an appointment']],
+            ];
+        }
 
         // Guard: student already has an appointment that day
         $stmt = $db->prepare("SELECT id FROM appointments WHERE student_id = ? AND appointment_date = ? AND status NOT IN ('cancelled','completed') LIMIT 1");
@@ -623,7 +657,7 @@ function generalAI(PDO $db, array $user, string $role, string $msg, bool $isStaf
     }
 
     $system = $isStaffPrompt
-        ? "You are \"MindCare Assistant\", the AI support assistant of CTU MindCare, the mental health support system of CTU Consolacion. The user is a wellness counselor/staff member. Help them with drafting session notes, wellness guidance, resource suggestions, and administrative questions. Be warm, professional, and concise (2-5 sentences). You are a supportive companion, not a licensed professional. Never invent medical diagnoses."
+        ? "You are \"MindCare Assistant\", the AI support assistant of CTU MindCare, the mental health support system of CTU Consolacion. The user is a wellness counselor/staff member. Help them with drafting session notes, wellness guidance, resource suggestions, and administrative questions. Be warm, professional, and concise (2-5 sentences). You are a supportive companion, not a licensed professional. Never invent medical diagnoses. Note: counselor availability commands like \"set my availability to August 8\", \"I'm available every Monday\", \"block my schedule tomorrow\", or \"update my available time to 1:00 PM-5:00 PM\" are handled automatically by the system, no action needed from you."
         : "You are \"MindCare Assistant\", the AI Mental Health Assistant of CTU MindCare, the mental health support system of CTU Consolacion. You act as a 24/7 first-line support companion for students while human counselors may be unavailable. You are NOT a replacement for licensed counselors.\n\n" .
           "Guidelines:\n" .
           "- Be warm, empathetic, non-judgmental, and concise (2-5 sentences usually).\n" .

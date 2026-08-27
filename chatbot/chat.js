@@ -111,12 +111,7 @@
         var msgs = data.messages || [];
         if (!msgs.length && data.greeting) {
           bubble('bot', data.greeting);
-          chipsRow([
-            { label: '📅 Book a session', value: 'book an appointment' },
-            { label: '😟 I\u2019m feeling anxious', value: 'I am feeling very anxious right now' },
-            { label: '😴 Trouble sleeping', value: 'I have trouble sleeping at night' },
-            { label: '💬 Talk to a counselor', value: 'I want to talk to a human counselor' }
-          ]);
+          if (data.chips && data.chips.length) chipsRow(data.chips);
         } else {
           msgs.forEach(function (m) {
             bubble(m.sender === 'user' ? 'user' : 'bot', m.message);

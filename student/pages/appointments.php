@@ -4,6 +4,7 @@
 //  File: student/pages/appointments.php
 // ============================================================
 require_once '../../includes/auth.php';
+require_once '../../includes/counselor_availability.php';
 requireRole('student');
 
 $user = currentUser();
@@ -71,6 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$counselor_id, $appt_date, $appt_time]);
         if ($stmt->fetch()) {
             $error = 'That time slot is already booked. Please choose another.';
+        } elseif (!mcSlotInWindow($db, $counselor_id, $appt_date, $appt_time)) {
+            $error = "That time slot is outside this counselor's availability. Please choose an available slot.";
         } else {
             // Check student doesn't already have a pending/confirmed appointment that day
             $stmt = $db->prepare("
@@ -158,6 +161,9 @@ $booked_index = [];
 foreach ($booked_slots as $bs) {
     $booked_index[$bs['counselor_id']][$bs['appointment_date']][] = substr($bs['appointment_time'], 0, 5);
 }
+
+// ── Per-counselor availability windows for the calendar ───────
+$window_index = mcAvailabilityHorizon($db, $counselors, 60);
 
 $flash = getFlash();
 
@@ -423,7 +429,7 @@ require_once '../../includes/assets.php';
                   </div>
                 <?php endforeach; ?>
               </div>
-              <div class="form-hint" style="margin-top:6px">Greyed-out slots are already taken for this counselor &amp; date.</div>
+              <div class="form-hint" style="margin-top:6px">Greyed-out slots are unavailable for this counselor &amp; date (already booked or outside their set availability).</div>
 
               <div style="display:flex;gap:10px;margin-top:18px">
                 <button type="button" class="btn-back-step" onclick="goStep(1)"><i data-lucide="arrow-left" style="width:14px;height:14px"></i> Back</button>
@@ -507,6 +513,7 @@ require_once '../../includes/assets.php';
 <script>
 // ── State ─────────────────────────────────────────────────────
 const bookedIndex = <?= json_encode($booked_index) ?>;
+const windowIndex = <?= json_encode($window_index) ?>;
 let selCounselorId   = '<?= clean($_POST['counselor_id'] ?? '') ?>';
 let selCounselorName = '';
 let selDate          = '<?= clean($_POST['appointment_date'] ?? '') ?>';
@@ -670,19 +677,25 @@ function calNext() {
   renderCalendar();
 }
 
-// ── Grey out booked time slots ────────────────────────────────
+// ── Grey out booked / unavailable time slots ─────────────────
 function updateSlots() {
   const booked = (selCounselorId && selDate &&
                   bookedIndex[selCounselorId] && bookedIndex[selCounselorId][selDate])
     ? bookedIndex[selCounselorId][selDate] : [];
 
+  const win = (selCounselorId && selDate &&
+               windowIndex[selCounselorId] && windowIndex[selCounselorId][selDate])
+    ? windowIndex[selCounselorId][selDate] : null;
+
   document.querySelectorAll('.time-slot-radio').forEach(input => {
     const label = input.nextElementSibling;
     const tval  = input.value.substring(0, 5);
-    const isBooked = booked.includes(tval);
-    if (label) label.classList.toggle('booked', isBooked);
-    input.disabled = isBooked;
-    if (isBooked && input.checked) { input.checked = false; selTime = ''; checkStep2Ready(); }
+    const unavailable = (win === 'blocked') ||
+                        (win && win !== 'blocked' && (tval < win.start || tval > win.end));
+    const isUnavailable = booked.includes(tval) || unavailable;
+    if (label) label.classList.toggle('booked', isUnavailable);
+    input.disabled = isUnavailable;
+    if (isUnavailable && input.checked) { input.checked = false; selTime = ''; checkStep2Ready(); }
   });
 }
 

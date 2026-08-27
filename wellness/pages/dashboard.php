@@ -20,6 +20,7 @@ if (!$user) {
 $db = getDB();
 
 require_once '../../includes/counselor_ai.php';
+require_once '../../includes/counselor_availability.php';
 mcEnsureAiTables($db);
 mcTouchPresence($db, (int)$user['id']);
 
@@ -102,6 +103,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_action'] ?? '') === '
         setFlash('error', 'Please fill in all required fields.');
     }
     header('Location: dashboard.php?p=appointments');
+    exit;
+}
+
+// Add availability (manual dashboard form)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_action'] ?? '') === 'add_availability') {
+    $date  = trim($_POST['avail_date'] ?? '');
+    $start = trim($_POST['avail_start'] ?? '');
+    $end   = trim($_POST['avail_end'] ?? '');
+    if ($date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)
+        && strtotime($date) >= strtotime('today')
+        && (int)date('N', strtotime($date)) <= 5
+        && $start && $end) {
+        try {
+            setFlash('success', mcSetDateAvailability($db, (int)$user['id'], $date, ['start' => $start, 'end' => $end]));
+        } catch (Throwable $e) {
+            setFlash('error', 'Could not save that availability.');
+        }
+    } else {
+        setFlash('error', 'Please provide a valid future weekday, start time and end time.');
+    }
+    header('Location: dashboard.php?p=availability');
+    exit;
+}
+
+// Remove one of the counselor's availability rules
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form_action'] ?? '') === 'remove_availability') {
+    $ruleId = (int)($_POST['rule_id'] ?? 0);
+    if ($ruleId > 0 && mcDeleteAvailabilityRule($db, (int)$user['id'], $ruleId)) {
+        setFlash('success', 'Availability rule removed.');
+    } else {
+        setFlash('error', 'Could not remove that rule.');
+    }
+    header('Location: dashboard.php?p=availability');
     exit;
 }
 
@@ -856,6 +890,7 @@ require_once '../../includes/topbar.php';
       'messages'  => 'messages',  'ai-logs'   => 'ai-logs',    'alerts'        => 'alerts',
       'notes'     => 'notes',     'assessments' => 'assessments', 'progress'    => 'progress',
       'forum'     => 'forum',     'resources' => 'resources',  'announcements' => 'announcements',
+      'availability' => 'availability',
       'crisis'    => 'crisis',
   ];
   $active_page   = $mc_active_map[$page] ?? 'dashboard';
@@ -1985,6 +2020,116 @@ require_once '../../includes/topbar.php';
             This will create a crisis alert visible to system administrators.
           </p>
         </form>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <?php elseif ($page === 'availability'): ?>
+    <!-- ── AVAILABLE TIME ─────────────────────────────────────── -->
+    <?php
+    $avail_summary      = mcAvailabilitySummary($db, $user);
+    $avail_time_options = mcTimeSlots();
+    ?>
+
+    <div class="page-header">
+      <div class="page-title">Available time</div>
+      <div class="page-sub">Your availability decides what students can book. Set it here or by telling the AI Assistant — e.g. "I am available on August 8 from 9:00 AM to 4:00 PM."</div>
+    </div>
+
+    <div class="main-grid">
+      <div class="col-stack">
+        <!-- Upcoming available dates -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">🗓️ Upcoming available dates</span></div>
+          <?php if (empty($avail_summary['upcoming'])): ?>
+            <div class="empty-state">
+              <div class="empty-icon">🗓️</div>
+              <div class="empty-text">No availability set for the next two weeks. Students currently see the default Monday – Friday, 9:00 AM – 5:00 PM window.</div>
+            </div>
+          <?php else: ?>
+            <table class="assess-table">
+              <thead>
+                <tr><th>Date</th><th>Available window</th><th>Open slots</th></tr>
+              </thead>
+              <tbody>
+              <?php foreach ($avail_summary['upcoming'] as $u): ?>
+                <tr>
+                  <td><?= clean($u['label']) ?></td>
+                  <td><?= date('g:i A', strtotime($u['slots'][0])) ?> – <?= date('g:i A', strtotime($u['slots'][count($u['slots']) - 1])) ?></td>
+                  <td><?= count($u['slots']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+        </div>
+
+        <!-- Stored rules -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">📌 Your availability rules</span></div>
+          <?php if (empty($avail_summary['rules'])): ?>
+            <div class="empty-state">
+              <div class="empty-icon">📌</div>
+              <div class="empty-text">No custom rules yet — everything falls back to the default schedule.</div>
+            </div>
+          <?php else: ?>
+            <table class="assess-table">
+              <thead>
+                <tr><th>Rule</th><th>Window</th><th>Type</th><th></th></tr>
+              </thead>
+              <tbody>
+              <?php foreach ($avail_summary['rules'] as $r): ?>
+                <tr>
+                  <td><?= clean($r['label']) ?></td>
+                  <td><?= (int)$r['is_available'] ? $r['start_label'] . ' – ' . $r['end_label'] : '<span style="color:#8B2020">Blocked</span>' ?></td>
+                  <td><?= $r['is_recurring'] ? 'Recurring weekly' : 'One-off date' ?></td>
+                  <td>
+                    <form method="POST" action="dashboard.php?p=availability" style="display:inline" onsubmit="return confirm('Remove this availability rule?');">
+                      <input type="hidden" name="form_action" value="remove_availability">
+                      <input type="hidden" name="rule_id" value="<?= (int)$r['id'] ?>">
+                      <button type="submit" class="btn btn-danger btn-xs">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <div class="col-stack">
+        <!-- Manual add -->
+        <div class="card">
+          <div class="card-header"><span class="card-title">➕ Add a date</span></div>
+          <form method="POST" action="dashboard.php?p=availability">
+            <input type="hidden" name="form_action" value="add_availability">
+            <div class="form-group">
+              <label class="form-label">Date *</label>
+              <input type="date" name="avail_date" class="form-input" required min="<?= date('Y-m-d') ?>">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Start *</label>
+              <select name="avail_start" class="form-select" required>
+                <?php foreach ($avail_time_options as $ts): ?>
+                  <option value="<?= $ts ?>"><?= date('g:i A', strtotime($ts)) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">End *</label>
+              <select name="avail_end" class="form-select" required>
+                <?php foreach ($avail_time_options as $ts): ?>
+                  <option value="<?= $ts ?>"><?= date('g:i A', strtotime($ts)) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-sage">Save availability</button>
+            <p style="font-size:11px;color:var(--text-3);margin-top:10px">
+              Tip: you can also use the floating AI Assistant — e.g. "Set my availability to August 8."
+            </p>
+          </form>
+        </div>
       </div>
     </div>
 
